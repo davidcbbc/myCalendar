@@ -8,6 +8,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'myCalendar',
       theme: ThemeData(
         primarySwatch: Colors.green,
@@ -31,9 +32,33 @@ DateTime _selectedDay = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
+
+    final card = Container(
+      child: Card(
+        child: Text("Evento 1"),
+      ),
+    );
+
     return new Scaffold(
+      bottomNavigationBar:Container(
+        color: Colors.grey,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            IconButton(
+              icon: Icon(Icons.email,color: Colors.white,),
+              onPressed: (){},
+            ),
+            IconButton(
+              icon: Icon(Icons.sms,color: Colors.white),
+              onPressed: (){},
+            ),
+          ],
+        ),
+      ),
       appBar: new AppBar(
-        title: Text("myCalendar by capella"),
+        title: Text("Calendar Test"),
+        backgroundColor: Colors.grey,
       ),
       body: Column(
         children: <Widget>[
@@ -46,6 +71,8 @@ DateTime _selectedDay = DateTime.now();
                 _selectedDay = date;
               });
             },
+          ),SingleChildScrollView(
+            child: card,
           )
         ],
       ),
