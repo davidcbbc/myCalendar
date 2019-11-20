@@ -36,6 +36,24 @@ class _MyHomePageState extends State<MyHomePage> {
     title += " - ";
     title += _selectedDay.year.toString();
 
+
+    final drag = Draggable<String>(
+                  data: "A TUA PRIMA OH BELHOTE",
+                  childWhenDragging: Container(
+                    child: Icon(Icons.ac_unit,color: Colors.grey,),
+                  ),
+                  child: Container(
+                    child: Icon(Icons.ac_unit),
+                  ),
+                  feedback: Container(
+                    child: Icon(Icons.ac_unit),
+                  ),
+
+                );
+
+
+
+
     final card = DragTarget(
       builder: (context, List<String> candidateData, rejectedData) {
         return Container(
@@ -75,6 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       onWillAccept: (data) {
         print("onWillAccept: $data");
+        return true;
       },
       onAccept: (data) {
         print("1");
@@ -98,11 +117,22 @@ class _MyHomePageState extends State<MyHomePage> {
                 Icons.email,
                 color: Colors.white,
               ),
-              onPressed: () {},
+              onPressed: () {
+                // email para clientes
+                
+              },
             ),
             IconButton(
               icon: Icon(Icons.sms, color: Colors.white),
-              onPressed: () {},
+              onPressed: () {
+                // Sms para funcionarios
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.mail_outline, color: Colors.white),
+              onPressed: () {
+                // Email para multipessoal
+              },
             ),
           ],
         ),
@@ -110,6 +140,27 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: new AppBar(
         title: Text(title),
         backgroundColor: Colors.grey[800],
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.add),
+            onPressed: () {
+              // Adicionar evento
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.person_add),
+            onPressed: () {
+              // Adicionar funcionario
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.business_center),
+            onPressed: () {
+              // Adicionar cliente
+            },
+          ),
+
+          ],
       ),
       body: Column(
         children: <Widget>[
@@ -126,27 +177,37 @@ class _MyHomePageState extends State<MyHomePage> {
           Expanded(
             child: Row(
               children: <Widget>[
-                Draggable<String>(
-                  data: "A TUA PRIMA OH BELHOTE",
-                  childWhenDragging: Icon(Icons.ac_unit,color: Colors.grey,),
-                  child: Container(
-                    child: Icon(Icons.ac_unit),
-                  ),
-                  feedback: Icon(Icons.ac_unit),
+                Container(
+                  
+                  width: 150,
+                  color: Colors.grey[200],
+                  child: ListView(
+                    children: <Widget>[
+                      drag,
+                      drag,
+                      drag,
 
+                    ],
+                  )
                 ),
                 SizedBox(
                   width: 10,
                 ),
                 Expanded(
                   child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
                     child: GridView.count(
+                      scrollDirection: Axis.horizontal,
                       physics: ScrollPhysics(),
                       shrinkWrap: true,
                       crossAxisCount: 2,
                       children: <Widget>[
                         card,
+                        card,
+                        card,
+                        card,
                         card
+                        
                       ],
                     ),
                   ),
