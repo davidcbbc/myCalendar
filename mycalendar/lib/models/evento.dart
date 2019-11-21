@@ -9,6 +9,7 @@ import 'package:mycalendar/models/cliente.dart';
 
 class Evento {
   Cliente cliente;
+  DateTime data;
   String local;
   String tipo;  // Ou 'HOTEL' ou 'EVENTO' . Sendo hotel, ao inserir o pedido (dos empregados, horarios, etc) já não me pede farda nem local; Sendo evento, ao inserir o pedido já vai pedir farda e morada
   String farda; // camisa preta , camisa branca e laco , camisa branca com colete e laco , camisa branca com colete e laco.
@@ -18,5 +19,5 @@ class Evento {
   
 
 
-  Evento(this.cliente, {this.local,this.tipo,this.farda,this.horariosEntrada});
+  Evento(this.cliente, {this.local,this.tipo,this.farda,this.horariosEntrada,this.data});
 }

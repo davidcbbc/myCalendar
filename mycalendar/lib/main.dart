@@ -31,24 +31,26 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     String title = _selectedDay.day.toString();
-    title += " - ";
+    title += "-";
     title += _selectedDay.month.toString();
-    title += " - ";
+    title += "-";
     title += _selectedDay.year.toString();
 
 
     final drag = Draggable<String>(
                   data: "A TUA PRIMA OH BELHOTE",
                   childWhenDragging: Container(
-                    child: Icon(Icons.ac_unit,color: Colors.grey,),
+                    child: Text("empregado",style: TextStyle(fontWeight: FontWeight.bold,color: Colors.grey),textAlign: TextAlign.center,),
                   ),
                   child: Container(
-                    child: Icon(Icons.ac_unit),
+                    child: Text("empregado",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,),
                   ),
-                  feedback: Container(
-                    child: Icon(Icons.ac_unit),
-                  ),
-
+                  feedback: Material(
+                    child: Container(
+                      color: Colors.grey,
+                      child: Text("empregado",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,),
+                    ),
+                  )
                 );
 
 
@@ -62,11 +64,15 @@ class _MyHomePageState extends State<MyHomePage> {
           width: 100,
           child: Card( 
             color: Colors.grey[400],
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: <Widget>[
+                  Text(
+                    "Evento",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
                       Icon(
                         Icons.people,
@@ -74,20 +80,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       Text("0")
                     ],
-                  ),
-                  Text(
-                    "Evento",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.group_add, color: Colors.grey[800]),
-                    onPressed: () {
-                      // Adicionar um funcionario
-                    },
-                  ),
+                  ),  
                 ],
               ),
-            ),
+            
           ),
         );
       },
@@ -138,7 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       appBar: new AppBar(
-        title: Text(title),
+        title: Row(children: <Widget>[Text(title),SizedBox(width: 10,),Icon(Icons.group,color: Colors.grey,),Text("22")],),
         backgroundColor: Colors.grey[800],
         actions: <Widget>[
           IconButton(
@@ -183,9 +179,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: Colors.grey[200],
                   child: ListView(
                     children: <Widget>[
+                      Text("DISP. TOTAL", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),textAlign: TextAlign.center,),
                       drag,
                       drag,
+                      Text("DISP. REDUZIDA", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),textAlign: TextAlign.center,),
                       drag,
+                      Text("DISP. OCASIONAL", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),textAlign: TextAlign.center,),
+                      drag,
+                    
 
                     ],
                   )
