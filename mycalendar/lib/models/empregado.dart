@@ -7,7 +7,7 @@ class Empregado {
 
 
  @override
-  String toString() => "nome ${this.nome} , telemovel ${this.telemovel} , disponibilidade ${this.disponibilidade}";
+  String toString() => "Empregado: nome ${this.nome} , telemovel ${this.telemovel} , disponibilidade ${this.disponibilidade}";
 
 
 

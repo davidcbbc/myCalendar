@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:date_picker_timeline/date_picker_timeline.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:mycalendar/models/cliente.dart';
 import 'package:mycalendar/models/empregado.dart';
+import 'package:mycalendar/models/evento.dart';
 
 void main() => runApp(MyApp());
 
@@ -29,14 +31,20 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   DateTime _selectedDay = DateTime.now();
-  List<Empregado> empregados = List<
-      Empregado>(); //Esta lista tem os empregados atualizados da base de dados
-  bool precisoEmpregados =
-      true; // Quando este bool esta a true , quer dizer que e necessario uma pesquisa a base de dados para atualizar a lista de empregados
+  List<Empregado> empregados = List<Empregado>(); // Lista de empregados atualizados ou nao da base de dados
+  List<Cliente> clientes = List<Cliente>(); // Lista de clientes atualizados ou nao da base de dados
+  List<Evento> eventos = List<Evento>(); //Lista de eventos atualizados ou nao da base de dados
+  bool precisoEmpregados = true; // Quando este bool esta a true , quer dizer que e necessario uma pesquisa a base de dados para atualizar a lista de empregados
+  bool precisoClientes = true; // Quando este bool esta a true , quer dizer que e necessario uma pesquisa a base de dados para atualizar a lista de clientes
+  bool precisoEventos = true; // Quando este bool esta a true , quer dizer que e necessario uma pesquisa a base de dados para atualizar a lista de eventos
+  
+
+
+
 
   /*
-  Vai buscar funcionarios a base de dados e retorna uma lista
-  de funcionarios.
+  Vai buscar funcionarios a base de dados e atualiza a lista
+  empregados.
    */
   Future<void> _buscarEmpregados() async {
     List<Empregado> empregadosAux = new List<Empregado>();
@@ -44,20 +52,89 @@ class _MyHomePageState extends State<MyHomePage> {
         .reference()
         .child('funcionarios')
         .once();
-    print("olha aqui vai");
     Map mapa = teste.value;
     mapa.forEach((nomeEmpregado, info) {
       // Serializar de json para classe Empregado
       Empregado e = new Empregado(nomeEmpregado.toString(),
           info['disp'].toString(), int.parse(info['telemovel'].toString()));
-      print("Empregado : ${e.toString()}");
+      print(e.toString());
       empregadosAux.add(e);
     });
-    this.empregados = empregadosAux;
     setState(() {
+      this.empregados = empregadosAux;
       precisoEmpregados=false;
     });
   }
+
+
+  /*
+  Vai buscar clientes a base de dados e atualiza a lista
+  clientes.
+   */
+  Future<void> _buscarClientes() async {
+    List<Cliente> clientesAux = new List<Cliente>();
+    var bd = await FirebaseDatabase.instance.reference().child('clientes').once();
+    Map mapa = bd.value;
+    mapa.forEach((cliente,info) {
+      Cliente clientezito = new Cliente(cliente.toString(),info['email'].toString());
+      print(clientezito.toString());
+      clientesAux.add(clientezito);
+    });
+    setState(() {
+      this.clientes = clientesAux;
+      precisoClientes = false;
+    });
+  }
+
+  
+  
+  /*
+  Procura um cliente pelo nome na lista clientes e devolve
+  o cliente , se nao encontrar devolve null
+  */
+  Cliente _buscarClientePorNome(String nome){
+    this.clientes.forEach((cliente) {
+      if(cliente.nome == nome) return cliente;
+    });
+    return null;
+  }
+  
+  
+  
+  
+  
+  /*
+  Vai buscar eventos a base de dados e atualiza a lista
+  eventos. 
+  Nota: esta funcao so deve ser chamada depois da _buscarClientes()
+  visto que necessita de um cliente para construir um objeto to tipo Evento.
+   */
+  Future<void> _buscarEventos() async {
+    List<Evento> eventosAux = new List<Evento>();
+    var bd = await FirebaseDatabase.instance.reference().child('eventos').once();
+    Map mapa = bd.value;
+    mapa.forEach((data,info) {
+      print(info['cliente'].toString());
+      Cliente cliente = _buscarClientePorNome(info['cliente'].toString());
+      if( cliente != null) {
+        // Damos um double check que o cliente nao e null
+        Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString());
+        print(evento.toString());
+        eventosAux.add(evento);
+      } else {
+        // nao encontrou cliente
+        print("nao encontrei o cliente");
+      }
+    });
+    setState(() {
+      this.eventos = eventosAux;
+      precisoEventos = false;
+    });
+  }
+
+
+
+
 
   /*
   Cria 1 widget card arrastavel por empregado e divide
@@ -73,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
     empregados.forEach((empregado) {
       // Adiciona uma card arrastavel para cada empregado
       var card = Draggable<String>(
-          data: "Empregado arrastado : ${empregado.nome}",
+          data: "hey",
           childWhenDragging: Container(
             child: Text(
               empregado.nome,
@@ -206,16 +283,24 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       onAccept: (data) {
         print("1");
+
         print("onAccept: $data");
       },
       onLeave: (data) {
         print("2");
+
         print("onLeaveL $data");
       },
     );
 
     if (precisoEmpregados)
-      _buscarEmpregados(); // Se for necessario atualizar a lista de empregados a bd
+      _buscarEmpregados(); // Atualiza lista de empregados da bd
+
+    if (precisoClientes)
+      _buscarClientes();  // Atualiza lista de clientes da bd
+
+    if (precisoEventos)
+      _buscarEventos(); // Atualiza lista de eventos da bd
 
     return new Scaffold(
         drawer: Drawer(
