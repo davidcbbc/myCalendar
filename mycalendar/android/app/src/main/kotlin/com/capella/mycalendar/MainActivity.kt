@@ -1,4 +1,4 @@
-package com.example.mycalendar
+package com.capella.mycalendar
 
 import android.os.Bundle
 

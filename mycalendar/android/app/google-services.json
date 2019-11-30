@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "945618791350",
+    "firebase_url": "https://mycalendar-397d5.firebaseio.com",
+    "project_id": "mycalendar-397d5",
+    "storage_bucket": "mycalendar-397d5.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:945618791350:android:7bac34bc833b3c1d682f17",
+        "android_client_info": {
+          "package_name": "com.capella.mycalendar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "945618791350-hmn7k9kds4i79s14233ois704imvpiqa.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBW8L3BT5it-eBdOHWhoBVG6bWoIOuipHA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "945618791350-hmn7k9kds4i79s14233ois704imvpiqa.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
