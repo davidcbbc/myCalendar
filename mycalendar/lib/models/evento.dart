@@ -25,7 +25,7 @@ class Evento {
   Evento(this.cliente, {this.local,this.tipo,this.farda,this.horariosEntrada,this.data , this.empregados});
 
   @override
-  String toString() => "Evento: cliente nome ${this.cliente.nome} , farda $farda , local $local";
+  String toString() => "Evento: nome_cliente ${this.cliente.nome} , farda $farda , local $local data ${data.toString()}";
 
 
 }
