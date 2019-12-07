@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:mycalendar/models/cliente.dart';
 import 'package:mycalendar/models/empregado.dart';
 import 'package:mycalendar/models/evento.dart';
+import 'package:dropdownfield/dropdownfield.dart';
 
 void main() => runApp(MyApp());
 
@@ -30,7 +31,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  //DateTime _selectedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   List<Empregado> empregados = List<Empregado>(); // Lista de empregados atualizados ou nao da base de dados
   List<Cliente> clientes = List<Cliente>(); // Lista de clientes atualizados ou nao da base de dados
@@ -41,6 +41,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool precisoEventos = false; // Quando este bool esta a true , quer dizer que e necessario uma pesquisa a base de dados para atualizar a lista de eventos
   bool precisoTudo = true;  // Vai buscar os dados de empregados , clientes e eventos
   bool mudeiDeDia = true;
+  int funcionariosTrabalhar = 0;  // numero de funcionarios a trabalhar no dia _selectedDay
 
 
   /*
@@ -64,6 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
     this.empregados = empregadosAux;
     return empregadosAux;
   }
+
 
 
   /*
@@ -96,7 +98,35 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
+  /*
+  Guarda os valores de um funcionario na base de dados
+   */
+  void _guardarFuncionarioBD(String nome , String disponibilidade , String telemovel) async{
+    try{
+      await FirebaseDatabase.instance.reference().child('funcionarios').child(nome).set({
+        'disp' : disponibilidade,
+        'telemovel' : telemovel
+      });
+    }on Exception {
+      print("exception");
+    }
+  }
 
+
+  /*
+  Guarda os valores de um evento na base de dados
+   */
+  void _guardarEventoBD(String data , String nomeCliente , String farda, String local) async{
+    try{
+      await FirebaseDatabase.instance.reference().child('eventos').child(data).set({
+        'cliente' : nomeCliente,
+        'farda' : farda,
+        'local' : local
+      });
+    }on Exception {
+      print("exception");
+    }
+  }
 
   /*
   Vai buscar eventos a base de dados e atualiza a lista
@@ -229,6 +259,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
+
+
   /*
   Cria 1 widget droppable por evento
    */
@@ -331,10 +363,11 @@ void _atualizarEventosDia() {
 
 
   /*
-  Muda a data do canto superior esquerdo
+  Transforma o objeto _selectedDay numa data em String
    */
   String _mudarData() {
     String title = _selectedDay.day.toString();
+    if(title.length == 1) title = "0" + title;
     title += "-";
     title += _selectedDay.month.toString();
     title += "-";
@@ -346,6 +379,25 @@ void _atualizarEventosDia() {
   Widget build(BuildContext context) {
     String title = _mudarData();
 
+
+
+
+    if(precisoEmpregados){
+      _buscarEmpregados().then((_){
+        setState(() {
+          precisoEmpregados = false;
+        });
+      });
+    }
+
+
+    if(precisoEventos){
+      _buscarEventos().then((_){
+        setState(() {
+          precisoEventos = false;
+        });
+      });
+    }
 
 
     if(precisoTudo) {
@@ -361,8 +413,8 @@ void _atualizarEventosDia() {
       });
     }
 
-    if(mudeiDeDia) _atualizarEventosDia();
 
+    if(mudeiDeDia) _atualizarEventosDia();
 
 
 
@@ -412,7 +464,7 @@ void _atualizarEventosDia() {
                 Icons.group,
                 color: Colors.grey,
               ),
-              Text("22", style: TextStyle(color: Colors.white),),
+              Text(funcionariosTrabalhar.toString(), style: TextStyle(color: Colors.white),),
               IconButton(
                 icon: Icon(
                   Icons.email,
@@ -453,15 +505,14 @@ void _atualizarEventosDia() {
               icon: Icon(Icons.add),
               onPressed: () {
                 // Adicionar evento
-                setState(() {
-                  precisoEmpregados = true;
-                });
+                _mostrarAddEvento("Adicionar evento");
               },
             ),
             IconButton(
               icon: Icon(Icons.person_add),
               onPressed: () {
                 // Adicionar funcionario
+                _mostrarAddFuncionario("Adicionar funcionario");
               },
             ),
             IconButton(
@@ -496,6 +547,7 @@ void _atualizarEventosDia() {
                         _selectedDay = date;
                         eventosDia.clear(); //da clear a lista de eventos do dia
                         mudeiDeDia = true;
+                        funcionariosTrabalhar = 0;
                       });
                     },
                   ),
@@ -521,4 +573,254 @@ void _atualizarEventosDia() {
           ],
         ));
   }
+
+  _mostrarAddFuncionario(String titulo) {
+    final List<String> _disps = ['Total', 'Reduzida', 'Ocasional'].toList();  // serve para adicionar funcionarios
+    String _disp = "";
+    final _formKey = GlobalKey<FormState>();
+    String nome;
+    String disp;
+    String telemovel;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          //contentPadding: EdgeInsets.all(0.0),
+            title: Text(titulo),
+          content: SingleChildScrollView(
+            child:
+              Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    TextFormField(
+                      // nome
+                      validator: (val){
+                        if(val.isEmpty) return "Escolhe um nome";
+                      },
+                      decoration: InputDecoration(
+                        focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.green),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0))
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                          borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                        ),
+                        icon: Icon(Icons.title,color: Colors.grey,),
+                        hintText: "Nome",
+                        contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                      ),
+                      onSaved: (value) {
+                        nome = value;
+                      },
+                    ),
+                    SizedBox(height: 20,),
+                    TextFormField(
+                      // telemovel
+                      keyboardType: TextInputType.phone,
+                      maxLength: 9,
+                      validator: (val){
+                        if(val.isEmpty) return "Escolhe um nr telemovel";
+                        if(val.length != 9) return "Insire 9 numeros";
+
+                      },
+                      decoration: InputDecoration(
+                        focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.green),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0))
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                          borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                        ),
+                        icon: Icon(Icons.phone_android,color: Colors.grey,),
+                        hintText: "Telemovel",
+                        contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                      ),
+                      onSaved: (valor) {
+                        telemovel = valor;
+                      },
+                    ),
+                    SizedBox(height: 20,),
+                    DropDownField(
+                        value: _disp,
+                        required: true,
+                        strict: true,
+                        labelText: 'Disponibilidade',
+                        items: _disps,
+                        setter: (dynamic newValue) {
+                          print("OLHA $newValue");
+                        },
+                      onValueChanged: (disponibilidade) {
+                          if(disponibilidade == "Total") disp = "DIS_TOTAL";
+                          if(disponibilidade == "Reduzida") disp = "DIS_REDUZIDA";
+                          if(disponibilidade == "Ocasional") disp = "DIS_OCASIONAL";
+                      },
+                    ),
+                    SizedBox(height: 20,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        FlatButton(
+                          child: Text("Guardar"),
+                          onPressed: () {
+                            // Guardar os valores e enviar para a base de dados
+                            if(_formKey.currentState.validate()) {
+                              _formKey.currentState.save();
+                              print("aaa");
+                              print("a guardar funcionario $nome $disp $telemovel");
+                              _guardarFuncionarioBD(nome,disp,telemovel);
+                              setState(() {
+                                precisoEmpregados = true;
+                              });
+                              Navigator.pop(context);
+                            }
+
+                          },
+
+                        ),
+                        FlatButton(
+                          child: Text("Cancelar"), onPressed: () {
+                            Navigator.pop(context);
+                        },
+                        ),
+
+                      ],
+                    )
+                  ],
+                ),
+
+              )
+            ,
+          )
+        );
+      }
+    );
+  }
+
+
+  _mostrarAddEvento(String titulo) {
+    final _formKey = GlobalKey<FormState>();
+    List<String> clientesAux = new List<String>();
+    List<String> fardas = ['Camisa preta' , 'Camisa branca e laco' , 'Camisa branca, colete e laco'];
+    String farda = "";
+    clientes.forEach((cliente){
+      clientesAux.add(cliente.nome);
+    });
+    String _cliente ;
+    String data = _mudarData();
+    String local = "sem";
+
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            //contentPadding: EdgeInsets.all(0.0),
+              title: Text(titulo),
+              content: SingleChildScrollView(
+                child:
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      TextFormField(
+                        // nome
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.green),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                          ),
+                          icon: Icon(Icons.location_on,color: Colors.grey,),
+                          hintText: "Local",
+                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                        ),
+                        onSaved: (value) {
+                          if(value.isEmpty) local = "sem";
+                          else local = value;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      DropDownField(
+                        value: _cliente,
+                        required: true,
+                        strict: true,
+                        labelText: 'Cliente',
+                        items: clientesAux,
+                        setter: (dynamic newValue) {
+                          print("OLHA $newValue");
+                        },
+                        onValueChanged: (cliente1) {
+                          _cliente = cliente1;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      DropDownField(
+                        value: farda,
+                        required: false,
+                        strict: true,
+                        labelText: 'Farda',
+                        items: fardas,
+                        setter: (dynamic newValue) {
+                          print("OLHA $newValue");
+                        },
+                        onValueChanged: (farda1) {
+                          farda = farda1;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          FlatButton(
+                            child: Text("Guardar"),
+                            onPressed: () async {
+                              // Guardar os valores e enviar para a base de dados
+                              if(_formKey.currentState.validate()) {
+                                _formKey.currentState.save();
+                                if(farda.isEmpty) farda = 'sem';
+                                print("a guardar evento $_cliente $data farda $farda local $local");
+                                _guardarEventoBD(data, _cliente, farda, local);
+                                await _buscarEventos();
+                                setState(() {
+                                  precisoEventos = true;
+                                });
+                                Navigator.pop(context);
+                              }
+
+                            },
+
+                          ),
+                          FlatButton(
+                            child: Text("Cancelar"), onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          ),
+
+                        ],
+                      )
+                    ],
+                  ),
+
+                )
+                ,
+              )
+          );
+        }
+    );
+  }
+
+
 }
