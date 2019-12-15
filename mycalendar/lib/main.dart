@@ -1,10 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart' as prefix0;
 import 'package:flutter/material.dart';
 import 'package:date_picker_timeline/date_picker_timeline.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as prefix1;
 import 'package:mycalendar/models/cliente.dart';
 import 'package:mycalendar/models/empregado.dart';
 import 'package:mycalendar/models/evento.dart';
 import 'package:dropdownfield/dropdownfield.dart';
+import 'package:mycalendar/util.dart';
+import 'package:flutter_masked_text/flutter_masked_text.dart';
 
 void main() => runApp(MyApp());
 
@@ -42,6 +51,9 @@ class _MyHomePageState extends State<MyHomePage> {
   bool precisoTudo = true;  // Vai buscar os dados de empregados , clientes e eventos
   bool mudeiDeDia = true;
   int funcionariosTrabalhar = 0;  // numero de funcionarios a trabalhar no dia _selectedDay
+  bool refreshCardEventos = false;  // serve para dar refresh a uma card de evento , usado quando um funcionario quer ser adicionado a um evento
+
+
 
 
   /*
@@ -114,7 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   /*
-  Guarda os valores de um evento na base de dados
+  Guarda os valores de um evento inicial na base de dados
    */
   void _guardarEventoBD(String data , String nomeCliente , String farda, String local) async{
     try{
@@ -124,9 +136,27 @@ class _MyHomePageState extends State<MyHomePage> {
         'local' : local
       });
     }on Exception {
-      print("exception");
+      print("excepcao em guardar eventos bd");
     }
   }
+  
+  
+  /*
+  Adiciona um horario a um evento previamente guardado na bd
+   */
+  void _addHorarioEventoBD(Evento evento, String horaEntrada, String horaSaida , int total) async {
+    try{
+      await FirebaseDatabase.instance.reference().child('eventos').child(_mudarData()).child('horario').child(horaEntrada).set({
+        'fim' : horaSaida,
+        'total' : total
+      });
+    }on Exception {
+      print("excepcao em guardar eventos bd");
+    }
+    
+  }
+  
+  
 
   /*
   Vai buscar eventos a base de dados e atualiza a lista
@@ -144,9 +174,31 @@ class _MyHomePageState extends State<MyHomePage> {
       int ano = int.parse(data.toString().substring(6,10));
       DateTime datinha = new DateTime(ano,mes,dia);
       Cliente cliente = _buscarClientePorNome(info['cliente'].toString());
+
+
+      Map<String,int> horario1 = new Map<String,int>();
+      Map<String,String> horario2 = new Map<String,String>();
+      Map<String,List<Empregado>> horario3 = new Map<String,List<Empregado>>();
+      if(info['horario'] != null) {
+        Map horarios = info['horario'];
+        horarios.forEach((dataEntrada, infos) {
+          horario1[dataEntrada] = infos['total'];
+          horario2[dataEntrada] = infos['fim'];
+          if(infos['empregados'] != null) {
+            // ja tiver empregados naquele horario
+            List<Empregado> listita = new List<Empregado>();
+            Map emps = infos['empregados'];
+            emps.forEach((nome , _) {
+              listita.add(_procurarEmp(nome));
+            });
+
+            horario3[dataEntrada] = listita;
+          }
+        });
+      }
       if( cliente != null) {
         // Damos um double check que o cliente nao e null
-        Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha);
+        Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha,horarioEntradaComFuncionariosTotais: horario1,horarioFuncionarios: horario3,horarios: horario2);
         print(evento.toString());
         eventosAux.add(evento);
       } else {
@@ -155,12 +207,20 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
     this.eventos = eventosAux;
+
     return eventosAux;
   }
 
 
-
-
+/*
+Procura um empregado pelo nome
+ */
+  Empregado _procurarEmp(String nome) {
+    for( int i = 0 ; i < this.empregados.length ; i++) {
+      if(this.empregados[i].nome == nome) return this.empregados[i];
+    }
+    return null;
+  }
 
   /*
   Cria 1 widget card arrastavel por empregado e divide
@@ -176,7 +236,7 @@ class _MyHomePageState extends State<MyHomePage> {
     empregados.forEach((empregado) {
       // Adiciona uma card arrastavel para cada empregado
       var card = Draggable<String>(
-          data: "hey",
+          data: empregado.nome,
           childWhenDragging: Container(
             child: Text(
               empregado.nome,
@@ -270,6 +330,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //print("ESTA LITA TEM ${this.eventos.length}");
     this.eventos.forEach((evento){
       //print("EVENTO -> ${evento.data.toString()} DIA SELECIONADO ${_selectedDay}");
+      var stream = new Stream.fromIterable(evento.empregados);
       int diasDeDiferenca = evento.data.difference(_selectedDay).inDays;  //calcula os dias de diferenca
       if(diasDeDiferenca == 0) { //se for 0 esta no mm dia
         eventosAux.add( DragTarget(
@@ -294,7 +355,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           Icons.people,
                           color: Colors.grey[800],
                         ),
-                        Text(evento.totalEmpregados.toString())
+                        Text(evento.totalEmpregados.toString()),
+                        IconButton(
+                          icon: Icon(Icons.alarm_add,),
+                          onPressed: () {
+                            _mostrarAddHorario(evento);
+                          },
+                        )
                       ],
                     ),
                     evento.local != 'sem'?
@@ -304,7 +371,11 @@ class _MyHomePageState extends State<MyHomePage> {
                         Icon(Icons.location_on, color: Colors.grey),
                         Text(evento.local)
                       ],
-                    ) : Text("")
+                    ) : Text(""),
+                    evento.horarios == null? Text("Sem horarios adicionados") : Column(
+                      children: evento.horarios.entries.map((nome) => Text(nome.value)).toList(),
+                    )
+
                   ],
                 ),
               ),
@@ -314,13 +385,26 @@ class _MyHomePageState extends State<MyHomePage> {
             print("onWillAccept: $data");
             return true;
           },
-          onAccept: (data) {
-            print("1");
+          onAccept: (nomeFuncionario) {
+            // largou o funcionario aqui
 
-            print("onAccept: $data");
+            this.empregados.forEach((empregado) {
+              // procura funcionario
+              if(empregado.nome == nomeFuncionario) {
+                // adicionar a esta card o nome funcionario
+                print("tamanho ");
+                if(evento.empregados == null) print("FUCK");
+                print(evento.empregados.length);
+                evento.empregados.add(empregado);
+                return;
+              }
+            });
+            setState(() {
+              precisoTudo = true;
+            });
+
           },
           onLeave: (data) {
-            print("2");
 
             print("onLeaveL $data");
           },
@@ -379,6 +463,12 @@ void _atualizarEventosDia() {
   Widget build(BuildContext context) {
     String title = _mudarData();
 
+
+
+    if(refreshCardEventos){
+      // um funcionario foi adicionado , vamos refrescar a card de eventos
+
+    }
 
 
 
@@ -554,8 +644,7 @@ void _atualizarEventosDia() {
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: precisoTudo? CircularProgressIndicator()
-                          : eventosDia.length != 0 ?
+                      child:  eventosDia.length != 0 ?
                       GridView.count(
                         scrollDirection: Axis.horizontal,
                         physics: ScrollPhysics(),
@@ -563,7 +652,7 @@ void _atualizarEventosDia() {
                         crossAxisCount: 2,
                         children: _buscarEventosWidget(),
                       ) : Center(
-                        child: Text("Sem eventos neste dia , adicione um."),
+                        child:precisoTudo || precisoEventos ? Text("A buscar informacoes ..."): Text("Sem eventos neste dia , adicione um."),
                       ),
                     ),
                   )
@@ -707,6 +796,7 @@ void _atualizarEventosDia() {
 
   _mostrarAddEvento(String titulo) {
     final _formKey = GlobalKey<FormState>();
+
     List<String> clientesAux = new List<String>();
     List<String> fardas = ['Camisa preta' , 'Camisa branca e laco' , 'Camisa branca, colete e laco'];
     String farda = "";
@@ -795,7 +885,7 @@ void _atualizarEventosDia() {
                                 _guardarEventoBD(data, _cliente, farda, local);
                                 await _buscarEventos();
                                 setState(() {
-                                  precisoEventos = true;
+                                  precisoTudo = true;
                                 });
                                 Navigator.pop(context);
                               }
@@ -821,6 +911,194 @@ void _atualizarEventosDia() {
         }
     );
   }
+
+
+
+  _mostrarAddHorario(Evento evento) {
+    final _formKey = GlobalKey<FormState>();
+    var controllerEntrada = new MaskedTextController(mask: '00:00');
+    var controllerSaida = new MaskedTextController(mask: '00:00');
+    String entrada;
+    String saida;
+    int numEmpregados;
+
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            //contentPadding: EdgeInsets.all(0.0),
+              title: Text("Adicionar horario a ${evento.cliente.nome}", textAlign: TextAlign.center,),
+              content: SingleChildScrollView(
+                child:
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      TextFormField(
+                        // hora entrada
+                        keyboardType: TextInputType.number,
+                        validator: (horaEntrada) {
+                          if(horaEntrada.isEmpty) return "Insere uma hora de entrada";
+                          if(horaEntrada.length != 5) return "Insere 4 numeros";
+                          int hora = int.parse(horaEntrada.substring(0,2));
+                          int minuto = int.parse(horaEntrada.substring(3,5));
+                          if(hora > 24 || hora < 0 || minuto > 60 || minuto < 0) return "Insere uma hora valida (hh:mm)";
+                          return null;
+                        },
+                        controller: controllerEntrada,
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.green),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                          ),
+                          icon: Icon(Icons.arrow_forward),
+                          hintText: "Hora Entrada",
+                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 30.0, 10.0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                        ),
+                        onSaved: (value) {
+                          entrada = value;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      TextFormField(
+                        // hora saida
+                        keyboardType: TextInputType.number,
+                        validator: (horaEntrada) {
+                          if(horaEntrada.isEmpty) return "Insere uma hora de saida";
+                          if(horaEntrada.length != 5) return "Insere 4 numeros";
+                          int hora = int.parse(horaEntrada.substring(0,2));
+                          int minuto = int.parse(horaEntrada.substring(3,5));
+                          if(hora > 24 || hora < 0 || minuto > 60 || minuto < 0) return "Insere uma hora valida (hh:mm)";
+                          return null;
+                        },
+                        controller: controllerSaida,
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.green),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                          ),
+                          icon: Icon(Icons.arrow_back),
+                          hintText: "Hora Saida",
+                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 30.0, 10.0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                        ),
+                        onSaved: (value) {
+                          saida = value;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      TextFormField(
+                        // numero funcionarios
+                        keyboardType: TextInputType.number,
+                        validator: (quantidade) {
+                            if(quantidade.isEmpty) return "Insere a quantidade de funcionarios";
+                            if(int.parse(quantidade) < 0) return "Numero nao valido";
+
+                            return null;
+                        },
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.green),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                          ),
+                          icon: Icon(Icons.accessibility),
+                          hintText: "Quantidade funcionarios",
+                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 30.0, 10.0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                        ),
+                        onSaved: (value) {
+                          numEmpregados = int.parse(value);
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          FlatButton(
+                            child: Text("Guardar"),
+                            onPressed: () async{
+                              if(_formKey.currentState.validate()) {
+                                _formKey.currentState.save();
+                                if(evento.horarioEntradaComFuncionariosTotais.containsKey(entrada)){
+                                  // ja existe este horario de entrada
+                                  Navigator.pop(context);
+                                  _mostrarAvisoHorarioExistente();
+                                  return;
+                                }
+                                print("A guarda evento na bd");
+                                _addHorarioEventoBD(evento, entrada, saida, numEmpregados);
+                                setState(() {
+                                  precisoTudo = true;
+                                });
+                                
+
+                                Navigator.pop(context);
+
+
+                              } 
+                            },
+                          ),
+                          FlatButton(
+                            child: Text("Cancelar"),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+
+                        ],
+                      )
+
+
+                    ],
+                  ),
+
+                )
+                ,
+              )
+          );
+        }
+    );
+  }
+
+  /*
+  Aviso que ja existe um horario com essa hora de entrada
+   */
+  _mostrarAvisoHorarioExistente() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Ups!"),
+          content: Text("Horario de entrada ja existe no evento em contexto."),
+          actions: <Widget>[
+            FlatButton(
+              child: Text("Entendi"),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            )
+          ],
+        );
+      }
+    );
+
+  }
+
+
+
 
 
 }
