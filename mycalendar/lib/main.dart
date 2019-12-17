@@ -130,7 +130,7 @@ class _MyHomePageState extends State<MyHomePage> {
    */
   void _guardarEventoBD(String data , String nomeCliente , String farda, String local) async{
     try{
-      await FirebaseDatabase.instance.reference().child('eventos').child(data).set({
+      await FirebaseDatabase.instance.reference().child('eventos').child(data).child('${this.eventos.length}').set({
         'cliente' : nomeCliente,
         'farda' : farda,
         'local' : local
@@ -168,46 +168,51 @@ class _MyHomePageState extends State<MyHomePage> {
     List<Evento> eventosAux = new List<Evento>();
     var bd = await FirebaseDatabase.instance.reference().child('eventos').once();
     Map mapa = bd.value;
-    mapa.forEach((data,info) {
+    mapa.forEach((data,numero) {
       int dia = int.parse(data.toString().substring(0,2));
       int mes = int.parse(data.toString().substring(3,5));
       int ano = int.parse(data.toString().substring(6,10));
       DateTime datinha = new DateTime(ano,mes,dia);
-      Cliente cliente = _buscarClientePorNome(info['cliente'].toString());
+
+      print(numero.toString());
+      List eventosDia = numero;
+      eventosDia.forEach((zeca) {
+        Map info = zeca;
+        Cliente cliente = _buscarClientePorNome(info['cliente'].toString());
+        Map<String,int> horario1 = new Map<String,int>();
+        Map<String,String> horario2 = new Map<String,String>();
+        Map<String,List<Empregado>> horario3 = new Map<String,List<Empregado>>();
+        if(info['horario'] != null) {
+          Map horarios = info['horario'];
+          horarios.forEach((dataEntrada, infos) {
+            horario1[dataEntrada] = infos['total'];
+            horario2[dataEntrada] = infos['fim'];
+            if(infos['empregados'] != null) {
+              // ja tiver empregados naquele horario
+              List<Empregado> listita = new List<Empregado>();
+              Map emps = infos['empregados'];
+              emps.forEach((nome , _) {
+                listita.add(_procurarEmp(nome));
+              });
+
+              horario3[dataEntrada] = listita;
+            }
+          });
+        }
+        if( cliente != null) {
+          // Damos um double check que o cliente nao e null
+          Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha,horarioEntradaComFuncionariosTotais: horario1,horarioFuncionarios: horario3,horarios: horario2);
+          print(evento.toString());
+          eventosAux.add(evento);
+        } else {
+          // nao encontrou cliente
+          print("nao encontrei o cliente");
+        }
+      });
 
 
-      Map<String,int> horario1 = new Map<String,int>();
-      Map<String,String> horario2 = new Map<String,String>();
-      Map<String,List<Empregado>> horario3 = new Map<String,List<Empregado>>();
-      if(info['horario'] != null) {
-        Map horarios = info['horario'];
-        horarios.forEach((dataEntrada, infos) {
-          horario1[dataEntrada] = infos['total'];
-          horario2[dataEntrada] = infos['fim'];
-          if(infos['empregados'] != null) {
-            // ja tiver empregados naquele horario
-            List<Empregado> listita = new List<Empregado>();
-            Map emps = infos['empregados'];
-            emps.forEach((nome , _) {
-              listita.add(_procurarEmp(nome));
-            });
-
-            horario3[dataEntrada] = listita;
-          }
-        });
-      }
-      if( cliente != null) {
-        // Damos um double check que o cliente nao e null
-        Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha,horarioEntradaComFuncionariosTotais: horario1,horarioFuncionarios: horario3,horarios: horario2);
-        print(evento.toString());
-        eventosAux.add(evento);
-      } else {
-        // nao encontrou cliente
-        print("nao encontrei o cliente");
-      }
     });
     this.eventos = eventosAux;
-
     return eventosAux;
   }
 
@@ -511,6 +516,7 @@ void _atualizarEventosDia() {
 
 
     return new Scaffold(
+        resizeToAvoidBottomPadding: false,
         drawer: Drawer(
           child: ListView(
             children: <Widget>[
@@ -810,103 +816,105 @@ void _atualizarEventosDia() {
     showDialog(
         context: context,
         builder: (BuildContext context) {
-          return AlertDialog(
-            //contentPadding: EdgeInsets.all(0.0),
-              title: Text(titulo),
-              content: SingleChildScrollView(
-                child:
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      TextFormField(
-                        // nome
-                        decoration: InputDecoration(
-                          focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.green),
-                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+          return SingleChildScrollView(
+            child: AlertDialog(
+              //contentPadding: EdgeInsets.all(0.0),
+                title: Text(titulo),
+                content: SingleChildScrollView(
+                  child:
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        TextFormField(
+                          // nome
+                          decoration: InputDecoration(
+                            focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.green),
+                                borderRadius: BorderRadius.all(Radius.circular(12.0))
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                            ),
+                            icon: Icon(Icons.location_on,color: Colors.grey,),
+                            hintText: "Local",
+                            contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.grey),
-                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
-                          ),
-                          icon: Icon(Icons.location_on,color: Colors.grey,),
-                          hintText: "Local",
-                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
-                        ),
-                        onSaved: (value) {
-                          if(value.isEmpty) local = "sem";
-                          else local = value;
-                        },
-                      ),
-                      SizedBox(height: 20,),
-                      DropDownField(
-                        value: _cliente,
-                        required: true,
-                        strict: true,
-                        labelText: 'Cliente',
-                        items: clientesAux,
-                        setter: (dynamic newValue) {
-                          print("OLHA $newValue");
-                        },
-                        onValueChanged: (cliente1) {
-                          _cliente = cliente1;
-                        },
-                      ),
-                      SizedBox(height: 20,),
-                      DropDownField(
-                        value: farda,
-                        required: false,
-                        strict: true,
-                        labelText: 'Farda',
-                        items: fardas,
-                        setter: (dynamic newValue) {
-                          print("OLHA $newValue");
-                        },
-                        onValueChanged: (farda1) {
-                          farda = farda1;
-                        },
-                      ),
-                      SizedBox(height: 20,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          FlatButton(
-                            child: Text("Guardar"),
-                            onPressed: () async {
-                              // Guardar os valores e enviar para a base de dados
-                              if(_formKey.currentState.validate()) {
-                                _formKey.currentState.save();
-                                if(farda.isEmpty) farda = 'sem';
-                                print("a guardar evento $_cliente $data farda $farda local $local");
-                                _guardarEventoBD(data, _cliente, farda, local);
-                                await _buscarEventos();
-                                setState(() {
-                                  precisoTudo = true;
-                                });
-                                Navigator.pop(context);
-                              }
-
-                            },
-
-                          ),
-                          FlatButton(
-                            child: Text("Cancelar"), onPressed: () {
-                            Navigator.pop(context);
+                          onSaved: (value) {
+                            if(value.isEmpty) local = "sem";
+                            else local = value;
                           },
-                          ),
+                        ),
+                        SizedBox(height: 20,),
+                        DropDownField(
+                          value: _cliente,
+                          required: true,
+                          strict: true,
+                          labelText: 'Cliente',
+                          items: clientesAux,
+                          setter: (dynamic newValue) {
+                            print("OLHA $newValue");
+                          },
+                          onValueChanged: (cliente1) {
+                            _cliente = cliente1;
+                          },
+                        ),
+                        SizedBox(height: 20,),
+                        DropDownField(
+                          value: farda,
+                          required: false,
+                          strict: true,
+                          labelText: 'Farda',
+                          items: fardas,
+                          setter: (dynamic newValue) {
+                            print("OLHA $newValue");
+                          },
+                          onValueChanged: (farda1) {
+                            farda = farda1;
+                          },
+                        ),
+                        SizedBox(height: 20,),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            FlatButton(
+                              child: Text("Guardar"),
+                              onPressed: () async {
+                                // Guardar os valores e enviar para a base de dados
+                                if(_formKey.currentState.validate()) {
+                                  _formKey.currentState.save();
+                                  if(farda.isEmpty) farda = 'sem';
+                                  print("a guardar evento $_cliente $data farda $farda local $local");
+                                  _guardarEventoBD(data, _cliente, farda, local);
+                                  await _buscarEventos();
+                                  setState(() {
+                                    precisoTudo = true;
+                                  });
+                                  Navigator.pop(context);
+                                }
 
-                        ],
-                      )
-                    ],
-                  ),
+                              },
 
+                            ),
+                            FlatButton(
+                              child: Text("Cancelar"), onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            ),
+
+                          ],
+                        )
+                      ],
+                    ),
+
+                  )
+                  ,
                 )
-                ,
-              )
+            ),
           );
         }
     );
