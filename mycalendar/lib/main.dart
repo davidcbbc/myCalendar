@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'myCalendar',
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        primarySwatch: Colors.grey,
       ),
       home: MyHomePage(),
     );
@@ -71,7 +71,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // Serializar de json para classe Empregado
       Empregado e = new Empregado(nomeEmpregado.toString(),
           info['disp'].toString(), int.parse(info['telemovel'].toString()));
-      print(e.toString());
+      //print(e.toString());
       empregadosAux.add(e);
     });
     this.empregados = empregadosAux;
@@ -90,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
     Map mapa = bd.value;
     mapa.forEach((cliente,info) {
       Cliente clientezito = new Cliente(cliente.toString(),info['email'].toString());
-      print(clientezito.toString());
+      //print(clientezito.toString());
       clientesAux.add(clientezito);
     });
     this.clientes = clientesAux;
@@ -130,7 +130,7 @@ class _MyHomePageState extends State<MyHomePage> {
    */
   void _guardarEventoBD(String data , String nomeCliente , String farda, String local) async{
     try{
-      await FirebaseDatabase.instance.reference().child('eventos').child(data).child('${this.eventos.length}').set({
+      await FirebaseDatabase.instance.reference().child('eventos').child(data).child('${this.eventosDia.length}').set({
         'cliente' : nomeCliente,
         'farda' : farda,
         'local' : local
@@ -145,8 +145,11 @@ class _MyHomePageState extends State<MyHomePage> {
   Adiciona um horario a um evento previamente guardado na bd
    */
   void _addHorarioEventoBD(Evento evento, String horaEntrada, String horaSaida , int total) async {
+
+    print("OLHA O EVENTO FRESQUINHO ${this.eventosDia.toString()}");
+    int indiceEvento = this.eventosDia.indexOf(evento);
     try{
-      await FirebaseDatabase.instance.reference().child('eventos').child(_mudarData()).child('horario').child(horaEntrada).set({
+      await FirebaseDatabase.instance.reference().child('eventos').child(_mudarData()).child('$indiceEvento').child('horario').child(horaEntrada).set({
         'fim' : horaSaida,
         'total' : total
       });
@@ -175,8 +178,8 @@ class _MyHomePageState extends State<MyHomePage> {
       DateTime datinha = new DateTime(ano,mes,dia);
 
       print(numero.toString());
-      List eventosDia = numero;
-      eventosDia.forEach((zeca) {
+      List eventosDia1 = numero;
+      eventosDia1.forEach((zeca) {
         Map info = zeca;
         Cliente cliente = _buscarClientePorNome(info['cliente'].toString());
         Map<String,int> horario1 = new Map<String,int>();
@@ -202,7 +205,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if( cliente != null) {
           // Damos um double check que o cliente nao e null
           Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha,horarioEntradaComFuncionariosTotais: horario1,horarioFuncionarios: horario3,horarios: horario2);
-          print(evento.toString());
+          //print(evento.toString());
           eventosAux.add(evento);
         } else {
           // nao encontrou cliente
@@ -324,6 +327,22 @@ Procura um empregado pelo nome
 
 
 
+  /*
+  Devolve uma lista de widgets com os nomes dos funcionarios para
+  um determinado horario de um evento
+
+   */
+
+  List<Widget>_listaEmpregadosPorHorario(Evento ev , String horarioEntrada ) {
+    List<Widget> listita = new List<Widget>();
+    List<Empregado> empregaditos = ev.horarioFuncionarios[horarioEntrada];  //vamos buscar a lista de funcionarios referente ao horario de entrada deste evento
+    if(empregaditos != null)
+      empregaditos.forEach((empregado){
+        listita.add(Text(empregado.nome , style: TextStyle(color: Colors.grey),));
+      });
+    else listita.add(Text(""));
+    return listita;
+  }
 
 
   /*
@@ -335,84 +354,110 @@ Procura um empregado pelo nome
     //print("ESTA LITA TEM ${this.eventos.length}");
     this.eventos.forEach((evento){
       //print("EVENTO -> ${evento.data.toString()} DIA SELECIONADO ${_selectedDay}");
-      var stream = new Stream.fromIterable(evento.empregados);
       int diasDeDiferenca = evento.data.difference(_selectedDay).inDays;  //calcula os dias de diferenca
       if(diasDeDiferenca == 0) { //se for 0 esta no mm dia
-        eventosAux.add( DragTarget(
-          builder: (context, List<String> candidateData, rejectedData) {
-            return Container(
-              padding: EdgeInsets.all(10),
-              height: 80,
-              width: 100,
-              child: Card(
-                color: Colors.grey[300],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
+        eventosAux.add(Container(
+          padding: EdgeInsets.all(10),
+          height: 80,
+          width: 100,
+          child: Card(
+            color: Colors.grey[300],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  evento.cliente.nome,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Text(
-                      evento.cliente.nome,
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    Icon(
+                      Icons.people,
+                      color: Colors.grey[800],
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Icon(
-                          Icons.people,
-                          color: Colors.grey[800],
-                        ),
-                        Text(evento.totalEmpregados.toString()),
-                        IconButton(
-                          icon: Icon(Icons.alarm_add,),
-                          onPressed: () {
-                            _mostrarAddHorario(evento);
-                          },
-                        )
-                      ],
-                    ),
-                    evento.local != 'sem'?
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Icon(Icons.location_on, color: Colors.grey),
-                        Text(evento.local)
-                      ],
-                    ) : Text(""),
-                    evento.horarios == null? Text("Sem horarios adicionados") : Column(
-                      children: evento.horarios.entries.map((nome) => Text(nome.value)).toList(),
+                    Text(evento.totalEmpregados.toString()),
+                    IconButton(
+                      icon: Icon(Icons.alarm_add,),
+                      onPressed: () {
+                        _mostrarAddHorario(evento);
+                      },
                     )
-
                   ],
                 ),
-              ),
-            );
-          },
-          onWillAccept: (data) {
-            print("onWillAccept: $data");
-            return true;
-          },
-          onAccept: (nomeFuncionario) {
-            // largou o funcionario aqui
+                evento.local != 'sem'?
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(Icons.location_on, color: Colors.grey),
+                    Text(evento.local)
+                  ],
+                ) : Text(""),
+                Expanded(
+                  child: evento.horarios == null || evento.horarios.length == 0? Center(child: Text("Sem horarios adicionados"),) : ListView(
+                    shrinkWrap: true,
+                    children: evento.horarios.entries.map((entrada) => DragTarget(
+                      builder: (context , List<String> CandidateData, rejectedData){
+                        return Container(
+                          decoration: new BoxDecoration(
+                              border: Border.all(color: Colors.grey[300],width: 2),
+                              color: Colors.grey[800],
+                              borderRadius: new BorderRadius.only(
+                                  topLeft: const Radius.circular(20.0,),
+                                  topRight: const Radius.circular(20.0),
+                                  bottomLeft: const Radius.circular(20.0),
+                                  bottomRight: const Radius.circular(20.0))),
+                          child: Center(
+                            child: Column(
+                              children: <Widget>[
+                                Text("${entrada.key}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 20,color: Colors.grey[300])),
+                                //Text("-",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 8,color: Colors.grey[300])),
+                                Text("até ${entrada.value}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 10,color: Colors.grey[300])),
+                                //SizedBox(height: 10,),
+                                Column(children: _listaEmpregadosPorHorario(evento, entrada.key)),
+                                SizedBox(height: 10,)
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      onAccept: (nomeFuncionario) {
+                        Empregado escolhido = _procurarEmp(nomeFuncionario);
+                        if(evento.horarioFuncionarios[entrada.key] == null){
+                          // Se nao exister uma lista de funcionarios para este horario de entrada
+                          // Vamos criar
+                          List<Empregado> aux = new List<Empregado>();
+                          aux.add(escolhido);
+                          evento.horarioFuncionarios[entrada.key] = aux;
+                          evento.empregados.add(escolhido);
+                          evento.totalEmpregados++;
+                          setState(() {
+                            // altera o numero total de empregados
+                          });
 
-            this.empregados.forEach((empregado) {
-              // procura funcionario
-              if(empregado.nome == nomeFuncionario) {
-                // adicionar a esta card o nome funcionario
-                print("tamanho ");
-                if(evento.empregados == null) print("FUCK");
-                print(evento.empregados.length);
-                evento.empregados.add(empregado);
-                return;
-              }
-            });
-            setState(() {
-              precisoTudo = true;
-            });
+                        }else {
+                          // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
+                          if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
+                            // se ainda nao tiver posto esse utilizador
+                            evento.horarioFuncionarios[entrada.key].add(escolhido);
+                            evento.empregados.add(escolhido);
+                            evento.totalEmpregados++;
+                            setState(() {
+                              // altera o numero total de empregados
+                            });
+                          }
 
-          },
-          onLeave: (data) {
 
-            print("onLeaveL $data");
-          },
+                        }
+
+
+                      },
+                    )).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ));
 
       }
@@ -442,11 +487,25 @@ Procura um empregado pelo nome
 Atualiza a lista de eventos do dia
  */
 void _atualizarEventosDia() {
+  eventosDia.clear();
   this.eventos.forEach((evento) {
     int diasDeDiferenca = evento.data.difference(_selectedDay).inDays;  //calcula os dias de diferenca
     if(diasDeDiferenca == 0) eventosDia.add(evento);
   });
   mudeiDeDia=false;
+}
+
+
+/*
+Retorna o total de empregados associados a um horario e entrada no presente dia
+ */
+int _totalEmpregadosTrabalhando(){
+  int total = 0;
+  this.eventosDia.forEach((evento){
+    total += evento.totalEmpregados;
+  });
+  return total;
+
 }
 
 
@@ -511,8 +570,7 @@ void _atualizarEventosDia() {
 
     if(mudeiDeDia) _atualizarEventosDia();
 
-
-
+    print("TAMANHO EVENTOS DO DIA ${this.eventosDia.length}");
 
 
     return new Scaffold(
@@ -560,7 +618,7 @@ void _atualizarEventosDia() {
                 Icons.group,
                 color: Colors.grey,
               ),
-              Text(funcionariosTrabalhar.toString(), style: TextStyle(color: Colors.white),),
+              Text(_totalEmpregadosTrabalhando().toString(), style: TextStyle(color: Colors.white),),
               IconButton(
                 icon: Icon(
                   Icons.email,
@@ -595,7 +653,7 @@ void _atualizarEventosDia() {
 
             ],
           ),
-          backgroundColor: Colors.grey[800],
+          backgroundColor: Colors.grey[300],
           actions: <Widget>[
             IconButton(
               icon: Icon(Icons.add),
