@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:mycalendar/models/cliente.dart';
 import 'package:mycalendar/models/empregado.dart';
 
@@ -31,5 +33,11 @@ class Evento {
   @override
   String toString() => "Evento: nome_cliente ${this.cliente.nome} , farda $farda , local $local data ${data.toString()}";
 
+  /// Devolve os horarios ordenados
+  SplayTreeMap horariosOdernados() {
+    SplayTreeMap<String,String> aux = new SplayTreeMap<String,String>();
+    aux.addAll(horarios);
+    return aux;
+  }
 
 }

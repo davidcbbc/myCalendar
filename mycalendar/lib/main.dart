@@ -1,18 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/cupertino.dart' as prefix0;
 import 'package:flutter/material.dart';
 import 'package:date_picker_timeline/date_picker_timeline.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/material.dart' as prefix1;
 import 'package:mycalendar/models/cliente.dart';
 import 'package:mycalendar/models/empregado.dart';
 import 'package:mycalendar/models/evento.dart';
 import 'package:dropdownfield/dropdownfield.dart';
-import 'package:mycalendar/util.dart';
+
 import 'package:flutter_masked_text/flutter_masked_text.dart';
 
 void main() => runApp(MyApp());
@@ -149,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
     print("OLHA O EVENTO FRESQUINHO ${this.eventosDia.toString()}");
     int indiceEvento = this.eventosDia.indexOf(evento);
     try{
-      await FirebaseDatabase.instance.reference().child('eventos').child(_mudarData()).child('$indiceEvento').child('horario').child(horaEntrada).set({
+      await FirebaseDatabase.instance.reference().child('eventos').child(getData()).child('$indiceEvento').child('horario').child(horaEntrada).set({
         'fim' : horaSaida,
         'total' : total
       });
@@ -177,7 +173,7 @@ class _MyHomePageState extends State<MyHomePage> {
       int ano = int.parse(data.toString().substring(6,10));
       DateTime datinha = new DateTime(ano,mes,dia);
 
-      print(numero.toString());
+      //print(numero.toString());
       List eventosDia1 = numero;
       eventosDia1.forEach((zeca) {
         Map info = zeca;
@@ -349,13 +345,8 @@ Procura um empregado pelo nome
   Cria 1 widget droppable por evento
    */
   List<Widget> _buscarEventosWidget() {
-    //_buscarEventos();
     List<Widget> eventosAux = new List<Widget>();
-    //print("ESTA LITA TEM ${this.eventos.length}");
-    this.eventos.forEach((evento){
-      //print("EVENTO -> ${evento.data.toString()} DIA SELECIONADO ${_selectedDay}");
-      int diasDeDiferenca = evento.data.difference(_selectedDay).inDays;  //calcula os dias de diferenca
-      if(diasDeDiferenca == 0) { //se for 0 esta no mm dia
+    this.eventosDia.forEach((evento){
         eventosAux.add(Container(
           padding: EdgeInsets.all(10),
           height: 80,
@@ -396,7 +387,7 @@ Procura um empregado pelo nome
                 Expanded(
                   child: evento.horarios == null || evento.horarios.length == 0? Center(child: Text("Sem horarios adicionados"),) : ListView(
                     shrinkWrap: true,
-                    children: evento.horarios.entries.map((entrada) => DragTarget(
+                    children: evento.horariosOdernados().entries.map((entrada) => DragTarget(
                       builder: (context , List<String> CandidateData, rejectedData){
                         return Container(
                           decoration: new BoxDecoration(
@@ -415,13 +406,21 @@ Procura um empregado pelo nome
                                 Text("até ${entrada.value}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 10,color: Colors.grey[300])),
                                 //SizedBox(height: 10,),
                                 Column(children: _listaEmpregadosPorHorario(evento, entrada.key)),
+                                Row(
+                                mainAxisAlignment: MainAxisAlignment.center
+                                ,children: <Widget>[
+                                  evento.horarioFuncionarios[entrada.key] != null?
+                                  Text("${evento.horarioFuncionarios[entrada.key].length}",style: TextStyle(color: Colors.white),) :
+                                      Text("0",style: TextStyle(color: Colors.white),),
+                                  Icon(Icons.account_circle,color: Colors.grey,),
+                                  Text("${evento.horarioEntradaComFuncionariosTotais[entrada.key]}",style: TextStyle(color: Colors.grey),)]),
                                 SizedBox(height: 10,)
                               ],
                             ),
                           ),
                         );
                       },
-                      onAccept: (nomeFuncionario) {
+                      onAccept: (nomeFuncionario) async{
                         Empregado escolhido = _procurarEmp(nomeFuncionario);
                         if(evento.horarioFuncionarios[entrada.key] == null){
                           // Se nao exister uma lista de funcionarios para este horario de entrada
@@ -434,7 +433,6 @@ Procura um empregado pelo nome
                           setState(() {
                             // altera o numero total de empregados
                           });
-
                         }else {
                           // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
                           if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
@@ -446,11 +444,7 @@ Procura um empregado pelo nome
                               // altera o numero total de empregados
                             });
                           }
-
-
                         }
-
-
                       },
                     )).toList(),
                   ),
@@ -460,27 +454,11 @@ Procura um empregado pelo nome
           ),
         ));
 
-      }
+
 
     });
     return eventosAux;
   }
-
-
-/*
-  /*
-  Vai buscar empregados , eventos e clientes a
-  base de dados e atualiza todas as listas
-   */
-  Future _buscarDadosTodos() async {
-    await _buscarEmpregados();
-    await _buscarClientes();
-    await _buscarEventos();
-    setState(() {
-      precisoTudo = false;
-    });
-  }
-*/
 
 
 /*
@@ -489,8 +467,10 @@ Atualiza a lista de eventos do dia
 void _atualizarEventosDia() {
   eventosDia.clear();
   this.eventos.forEach((evento) {
-    int diasDeDiferenca = evento.data.difference(_selectedDay).inDays;  //calcula os dias de diferenca
-    if(diasDeDiferenca == 0) eventosDia.add(evento);
+    if(evento.data.day == _selectedDay.day && evento.data.month == _selectedDay.month && evento.data.year == _selectedDay.year) {
+      print(evento.data.toString());
+      eventosDia.add(evento);
+    }
   });
   mudeiDeDia=false;
 }
@@ -513,10 +493,11 @@ int _totalEmpregadosTrabalhando(){
   /*
   Transforma o objeto _selectedDay numa data em String
    */
-  String _mudarData() {
+  String getData() {
     String title = _selectedDay.day.toString();
     if(title.length == 1) title = "0" + title;
     title += "-";
+    if(_selectedDay.month.toString().length == 1) title+= "0";
     title += _selectedDay.month.toString();
     title += "-";
     title += _selectedDay.year.toString();
@@ -525,7 +506,7 @@ int _totalEmpregadosTrabalhando(){
 
   @override
   Widget build(BuildContext context) {
-    String title = _mudarData();
+    String title = getData();
 
 
 
@@ -568,7 +549,8 @@ int _totalEmpregadosTrabalhando(){
     }
 
 
-    if(mudeiDeDia) _atualizarEventosDia();
+    if(!precisoEventos)
+      if(mudeiDeDia) _atualizarEventosDia();
 
     print("TAMANHO EVENTOS DO DIA ${this.eventosDia.length}");
 
@@ -753,6 +735,7 @@ int _totalEmpregadosTrabalhando(){
                       // nome
                       validator: (val){
                         if(val.isEmpty) return "Escolhe um nome";
+                        return null;
                       },
                       decoration: InputDecoration(
                         focusedBorder: OutlineInputBorder(
@@ -780,7 +763,7 @@ int _totalEmpregadosTrabalhando(){
                       validator: (val){
                         if(val.isEmpty) return "Escolhe um nr telemovel";
                         if(val.length != 9) return "Insire 9 numeros";
-
+                        return null;
                       },
                       decoration: InputDecoration(
                         focusedBorder: OutlineInputBorder(
@@ -868,7 +851,7 @@ int _totalEmpregadosTrabalhando(){
       clientesAux.add(cliente.nome);
     });
     String _cliente ;
-    String data = _mudarData();
+    String data = getData();
     String local = "sem";
 
     showDialog(
@@ -947,6 +930,7 @@ int _totalEmpregadosTrabalhando(){
                                   _formKey.currentState.save();
                                   if(farda.isEmpty) farda = 'sem';
                                   print("a guardar evento $_cliente $data farda $farda local $local");
+
                                   _guardarEventoBD(data, _cliente, farda, local);
                                   await _buscarEventos();
                                   setState(() {
