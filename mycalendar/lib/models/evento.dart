@@ -26,7 +26,7 @@ class Evento {
   
 
 
-  Evento(this.cliente, {this.local,this.tipo,this.farda,this.horarioEntradaComFuncionariosTotais,this.data , this.empregados,this.horarioFuncionarios,this.horarios}){
+  Evento(this.cliente, {this.local,this.tipo,this.farda,this.horarioEntradaComFuncionariosTotais,this.data , this.empregados,this.horarioFuncionarios,this.horarios,this.totalEmpregados}){
     this.empregados = new List<Empregado>();
   }
 
@@ -38,6 +38,13 @@ class Evento {
     SplayTreeMap<String,String> aux = new SplayTreeMap<String,String>();
     aux.addAll(horarios);
     return aux;
+  }
+
+  /// Diz se é possivel adicionar mais empregados a um horario
+  bool podeAdicionarMaisFuncionarios(String horaEntrada){
+    int maxFuncionarios = this.horarioEntradaComFuncionariosTotais[horaEntrada];
+    if(this.horarioFuncionarios[horaEntrada].length < maxFuncionarios ) return true;
+    return false;
   }
 
 }

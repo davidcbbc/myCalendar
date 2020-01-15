@@ -106,6 +106,20 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
+
+
+  /// Guarda um cliente na BD
+  void _guardarClienteBD(String nome , String email) async{
+    print("A guardar cliente $nome na BD");
+    try{
+      await FirebaseDatabase.instance.reference().child('clientes').child(nome).set({
+        'email' : email
+      });
+    }on Exception {
+      print("exception");
+    }
+  }
+
   /*
   Guarda os valores de um funcionario na base de dados
    */
@@ -173,34 +187,40 @@ class _MyHomePageState extends State<MyHomePage> {
       int ano = int.parse(data.toString().substring(6,10));
       DateTime datinha = new DateTime(ano,mes,dia);
 
-      //print(numero.toString());
+
       List eventosDia1 = numero;
       eventosDia1.forEach((zeca) {
+        int totalEmpregados = 0;
         Map info = zeca;
         Cliente cliente = _buscarClientePorNome(info['cliente'].toString());
         Map<String,int> horario1 = new Map<String,int>();
         Map<String,String> horario2 = new Map<String,String>();
+        //Map<String,String> funcionarios = new Map<String,String>();
         Map<String,List<Empregado>> horario3 = new Map<String,List<Empregado>>();
         if(info['horario'] != null) {
           Map horarios = info['horario'];
           horarios.forEach((dataEntrada, infos) {
             horario1[dataEntrada] = infos['total'];
             horario2[dataEntrada] = infos['fim'];
-            if(infos['empregados'] != null) {
-              // ja tiver empregados naquele horario
-              List<Empregado> listita = new List<Empregado>();
-              Map emps = infos['empregados'];
-              emps.forEach((nome , _) {
-                listita.add(_procurarEmp(nome));
-              });
+            if(infos['funcionarios'] != null){
 
-              horario3[dataEntrada] = listita;
+
+              // buscar os funcionarios para os horários correspondetes
+              List<Empregado> listaAux = new List<Empregado>();
+              print(infos['funcionarios']);
+              List list = infos['funcionarios'];
+              list.forEach((nomeEmpregado) {
+                totalEmpregados++;
+                listaAux.add(_procurarEmp(nomeEmpregado));
+              });
+              horario3[dataEntrada] = listaAux;
             }
+
           });
         }
         if( cliente != null) {
           // Damos um double check que o cliente nao e null
-          Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha,horarioEntradaComFuncionariosTotais: horario1,horarioFuncionarios: horario3,horarios: horario2);
+          Evento evento = new Evento(cliente,local: info['local'].toString(),farda: info['farda'].toString(),data: datinha,horarioEntradaComFuncionariosTotais: horario1,horarioFuncionarios: horario3,horarios: horario2,totalEmpregados: totalEmpregados);
           //print(evento.toString());
           eventosAux.add(evento);
         } else {
@@ -322,13 +342,31 @@ Procura um empregado pelo nome
   }
 
 
+  /// Adiciona um funcionário a um dado horário na BD
+  Future<void> _adicionarFuncionarioHorario(Empregado empregado, Evento evento, String horaEntrada) async{
+    print("A adicionar horário a um funcionário ...");
+    int indiceEvento = this.eventosDia.indexOf(evento);
+    int indiceFuncionario = evento.horarioFuncionarios[horaEntrada].length -1;
+    try {
+      await FirebaseDatabase.instance.reference().child('eventos').child(
+          getData()).child('$indiceEvento').child('horario').child(horaEntrada)
+          .child('funcionarios')
+          .update({
+        indiceFuncionario.toString() : empregado.nome
+      });
+
+      return;
+    } on Exception {
+      print("escexao");
+    }
+  }
+
+
 
   /*
   Devolve uma lista de widgets com os nomes dos funcionarios para
   um determinado horario de um evento
-
    */
-
   List<Widget>_listaEmpregadosPorHorario(Evento ev , String horarioEntrada ) {
     List<Widget> listita = new List<Widget>();
     List<Empregado> empregaditos = ev.horarioFuncionarios[horarioEntrada];  //vamos buscar a lista de funcionarios referente ao horario de entrada deste evento
@@ -422,28 +460,37 @@ Procura um empregado pelo nome
                       },
                       onAccept: (nomeFuncionario) async{
                         Empregado escolhido = _procurarEmp(nomeFuncionario);
-                        if(evento.horarioFuncionarios[entrada.key] == null){
-                          // Se nao exister uma lista de funcionarios para este horario de entrada
-                          // Vamos criar
-                          List<Empregado> aux = new List<Empregado>();
-                          aux.add(escolhido);
-                          evento.horarioFuncionarios[entrada.key] = aux;
-                          evento.empregados.add(escolhido);
-                          evento.totalEmpregados++;
-                          setState(() {
-                            // altera o numero total de empregados
-                          });
-                        }else {
-                          // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
-                          if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
-                            // se ainda nao tiver posto esse utilizador
-                            evento.horarioFuncionarios[entrada.key].add(escolhido);
+                        if(evento.podeAdicionarMaisFuncionarios(entrada.key)) {
+                          if(evento.horarioFuncionarios[entrada.key] == null){
+                            // Se nao exister uma lista de funcionarios para este horario de entrada
+                            // Vamos criar
+                            List<Empregado> aux = new List<Empregado>();
+                            aux.add(escolhido);
+                            evento.horarioFuncionarios[entrada.key] = aux;
                             evento.empregados.add(escolhido);
                             evento.totalEmpregados++;
-                            setState(() {
-                              // altera o numero total de empregados
+                            _adicionarFuncionarioHorario(escolhido, evento, entrada.key).then((_) {
+                              setState(() {
+                                // altera o numero total de empregados
+                              });
                             });
+                          }else {
+                            // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
+                            if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
+                              // se ainda nao tiver posto esse utilizador
+                              evento.horarioFuncionarios[entrada.key].add(escolhido);
+                              evento.empregados.add(escolhido);
+                              evento.totalEmpregados++;
+                              _adicionarFuncionarioHorario(escolhido, evento, entrada.key).then((_) {
+                                setState(() {
+                                  // altera o numero total de empregados
+                                });
+                              });
+                            }
                           }
+                        } else {
+                          // aviso que ja tem o max funcionarios
+                          _mostrarAvisoHorarioCheio();
                         }
                       },
                     )).toList(),
@@ -655,6 +702,7 @@ int _totalEmpregadosTrabalhando(){
               icon: Icon(Icons.business_center),
               onPressed: () {
                 // Adicionar cliente
+                _mostrarAddCliente();
               },
             ),
           ],
@@ -735,6 +783,10 @@ int _totalEmpregadosTrabalhando(){
                       // nome
                       validator: (val){
                         if(val.isEmpty) return "Escolhe um nome";
+                        for(int i = 0 ; i < this.empregados.length ; i++) {
+                          // check se já existe esse nome
+                          if(this.empregados[i].nome == val) return "Esse nome já existe";
+                        }
                         return null;
                       },
                       decoration: InputDecoration(
@@ -1123,6 +1175,126 @@ int _totalEmpregadosTrabalhando(){
     );
   }
 
+
+
+/// adicionar um cliente
+  _mostrarAddCliente() {
+    final _formKey = GlobalKey<FormState>();
+    String nome;
+    String email;
+
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            //contentPadding: EdgeInsets.all(0.0),
+              title: Text("Adicionar cliente", textAlign: TextAlign.center,),
+              content: SingleChildScrollView(
+                child:
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      TextFormField(
+                        // nome
+                        keyboardType: TextInputType.text,
+                        validator: (nome) {
+                          if(nome.isEmpty) return "Insere um nome";
+                          for(int i = 0 ; i < this.clientes.length ; i++) {
+                            if(clientes[i].nome == nome) return "Nome já existente";
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.green),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                          ),
+                          icon: Icon(Icons.account_box),
+                          hintText: "Nome",
+                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 30.0, 10.0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                        ),
+                        onSaved: (value) {
+                          nome = value;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      TextFormField(
+                        // email
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (email) {
+                          if(email.isEmpty) return "Insere um email";
+                          for(int i = 0 ; i < this.clientes.length ; i++) {
+                            if(clientes[i].email == email) return "Email já existente";
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.green),
+                              borderRadius: BorderRadius.all(Radius.circular(12.0))
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey),
+                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                          ),
+                          icon: Icon(Icons.email),
+                          hintText: "Email",
+                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 30.0, 10.0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
+                        ),
+                        onSaved: (value) {
+                          email = value;
+                        },
+                      ),
+                      SizedBox(height: 20,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          FlatButton(
+                            child: Text("Guardar"),
+                            onPressed: () async{
+                              if(_formKey.currentState.validate()) {
+                                _formKey.currentState.save();
+                                _guardarClienteBD(nome, email);
+                                setState(() {
+                                  precisoTudo = true;
+                                });
+                                Navigator.pop(context);
+                              }
+                            },
+                          ),
+                          FlatButton(
+                            child: Text("Cancelar"),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+
+                        ],
+                      )
+
+
+                    ],
+                  ),
+
+                )
+                ,
+              )
+          );
+        }
+    );
+  }
+
+
+
+
+
   /*
   Aviso que ja existe um horario com essa hora de entrada
    */
@@ -1144,7 +1316,29 @@ int _totalEmpregadosTrabalhando(){
         );
       }
     );
+  }
 
+  /*
+  Aviso que o horario esta cheio para esta hora
+   */
+  _mostrarAvisoHorarioCheio() {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Horário Cheio!"),
+            content: Text("O horário que pretende adicionar o funcionário já se encontra cheio."),
+            actions: <Widget>[
+              FlatButton(
+                child: Text("Entendi"),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              )
+            ],
+          );
+        }
+    );
   }
 
 

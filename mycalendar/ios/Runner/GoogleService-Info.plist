@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>945618791350-26s48gggjpcefjfne3na01531uv730kd.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.945618791350-26s48gggjpcefjfne3na01531uv730kd</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBgZTn6kjSY91zxbDrN5W_g5oPHLJ_xXF0</string>
+	<key>GCM_SENDER_ID</key>
+	<string>945618791350</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.capella.mycalendar</string>
+	<key>PROJECT_ID</key>
+	<string>mycalendar-397d5</string>
+	<key>STORAGE_BUCKET</key>
+	<string>mycalendar-397d5.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:945618791350:ios:08472f942ccd4ce6682f17</string>
+	<key>DATABASE_URL</key>
+	<string>https://mycalendar-397d5.firebaseio.com</string>
+</dict>
+</plist>
