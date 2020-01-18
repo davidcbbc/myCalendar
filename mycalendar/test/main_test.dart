@@ -1,4 +1,4 @@
-import 'package:mycalendar/main.dart';
+
 import 'package:mycalendar/models/evento.dart';
 import 'package:test/test.dart';
 

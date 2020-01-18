@@ -42,6 +42,7 @@ class Evento {
 
   /// Diz se é possivel adicionar mais empregados a um horario
   bool podeAdicionarMaisFuncionarios(String horaEntrada){
+    if(this.horarioFuncionarios[horaEntrada] == null) return true;
     int maxFuncionarios = this.horarioEntradaComFuncionariosTotais[horaEntrada];
     if(this.horarioFuncionarios[horaEntrada].length < maxFuncionarios ) return true;
     return false;

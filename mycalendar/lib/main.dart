@@ -10,6 +10,7 @@ import 'package:mycalendar/models/evento.dart';
 import 'package:dropdownfield/dropdownfield.dart';
 
 import 'package:flutter_masked_text/flutter_masked_text.dart';
+import 'package:mycalendar/screens/evento.dart';
 
 void main() => runApp(MyApp());
 
@@ -49,6 +50,13 @@ class _MyHomePageState extends State<MyHomePage> {
   int funcionariosTrabalhar = 0;  // numero de funcionarios a trabalhar no dia _selectedDay
   bool refreshCardEventos = false;  // serve para dar refresh a uma card de evento , usado quando um funcionario quer ser adicionado a um evento
 
+
+
+  @protected
+  @mustCallSuper
+  void initState() {
+    FirebaseDatabase.instance.setPersistenceEnabled(true);
+  }
 
 
 
@@ -207,7 +215,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
               // buscar os funcionarios para os horários correspondetes
               List<Empregado> listaAux = new List<Empregado>();
-              print(infos['funcionarios']);
+              //print(infos['funcionarios']);
               List list = infos['funcionarios'];
               list.forEach((nomeEmpregado) {
                 totalEmpregados++;
@@ -354,7 +362,6 @@ Procura um empregado pelo nome
           .update({
         indiceFuncionario.toString() : empregado.nome
       });
-
       return;
     } on Exception {
       print("escexao");
@@ -366,13 +373,41 @@ Procura um empregado pelo nome
   /*
   Devolve uma lista de widgets com os nomes dos funcionarios para
   um determinado horario de um evento
+  data devolve uma string com id do evento + "UPDATE" + horarioEntrada antigo ex: 0001UPDATE150:30Joao Carlos
    */
-  List<Widget>_listaEmpregadosPorHorario(Evento ev , String horarioEntrada ) {
+  List<Widget>listaEmpregadosPorHorario(Evento ev , String horarioEntrada ) {
     List<Widget> listita = new List<Widget>();
     List<Empregado> empregaditos = ev.horarioFuncionarios[horarioEntrada];  //vamos buscar a lista de funcionarios referente ao horario de entrada deste evento
+    String indiceEvento = this.eventosDia.indexOf(ev).toString();
     if(empregaditos != null)
       empregaditos.forEach((empregado){
-        listita.add(Text(empregado.nome , style: TextStyle(color: Colors.grey),));
+        //listita.add(Text(empregado.nome , style: TextStyle(color: Colors.grey),));
+        listita.add(Draggable<String>(
+            data:  indiceEvento.padLeft(4,'0')+ "UPDATE" + horarioEntrada+ empregado.nome,
+            childWhenDragging: Container(
+              child: Text(
+                empregado.nome,
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            child: Container(
+              child: Text(
+                empregado.nome,
+                style: TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            feedback: Material(
+              child: Container(
+                color: Colors.grey,
+                child: Text(
+                  empregado.nome,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )));
       });
     else listita.add(Text(""));
     return listita;
@@ -383,8 +418,13 @@ Procura um empregado pelo nome
   Cria 1 widget droppable por evento
    */
   List<Widget> _buscarEventosWidget() {
+
+
     List<Widget> eventosAux = new List<Widget>();
     this.eventosDia.forEach((evento){
+      ScrollController scrollController = new ScrollController();
+      int posicaoAntiga;
+      int posicaoAntesDaAntiga;
         eventosAux.add(Container(
           padding: EdgeInsets.all(10),
           height: 80,
@@ -411,7 +451,13 @@ Procura um empregado pelo nome
                       onPressed: () {
                         _mostrarAddHorario(evento);
                       },
-                    )
+                    ),
+                    IconButton(icon:Icon(Icons.pageview, color: Colors.grey[600],),
+                        onPressed: () {
+                        // ver o evento full screen
+                          //_mostrarEventoFullScreen(evento);
+                          Navigator.of(context).push(new MaterialPageRoute(builder: (BuildContext context) => new VerEvento(evento,this.empregados,this.eventosDia,this.eventos,this.clientes)));
+                        })
                   ],
                 ),
                 evento.local != 'sem'?
@@ -422,8 +468,28 @@ Procura um empregado pelo nome
                     Text(evento.local)
                   ],
                 ) : Text(""),
+                evento.horarios.isNotEmpty ? DragTarget(
+                  builder: (context , List<String> CandidateData, rejectedData){
+                    return Container(
+                      padding: EdgeInsets.only(left: 50,right: 50),
+                      color: Colors.grey[400],
+                      child: Icon(Icons.keyboard_arrow_up,size: 15,),
+
+                    );
+                  },
+                  onWillAccept: (value){
+                    double posicao = scrollController.offset;
+                    print("OLHA O FILHO");
+
+                      scrollController.animateTo(posicao - 30.0, curve: Curves.easeOut,
+                        duration: const Duration(milliseconds: 300));
+                    return true;
+                  },
+
+                ) : Text(""),
                 Expanded(
                   child: evento.horarios == null || evento.horarios.length == 0? Center(child: Text("Sem horarios adicionados"),) : ListView(
+                    controller: scrollController,
                     shrinkWrap: true,
                     children: evento.horariosOdernados().entries.map((entrada) => DragTarget(
                       builder: (context , List<String> CandidateData, rejectedData){
@@ -443,7 +509,7 @@ Procura um empregado pelo nome
                                 //Text("-",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 8,color: Colors.grey[300])),
                                 Text("até ${entrada.value}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 10,color: Colors.grey[300])),
                                 //SizedBox(height: 10,),
-                                Column(children: _listaEmpregadosPorHorario(evento, entrada.key)),
+                                Column(children: listaEmpregadosPorHorario(evento, entrada.key)),
                                 Row(
                                 mainAxisAlignment: MainAxisAlignment.center
                                 ,children: <Widget>[
@@ -458,8 +524,59 @@ Procura um empregado pelo nome
                           ),
                         );
                       },
-                      onAccept: (nomeFuncionario) async{
-                        Empregado escolhido = _procurarEmp(nomeFuncionario);
+                      onWillAccept: (value){
+                        // anda para cima e para baixo com o draggable
+                        // sempre que um horario tiver um index maior que o antigo , aumenta 30 no offset
+                        // se tiver um index menor , diminui 30 no offset
+                        //print(scrollController.position.viewportDimension);
+                       // print(scrollController.position.toString());
+                        List<String> entradas =  evento.horariosOdernados().keys.toList();
+                        if(value.contains("UPDATE")){
+                          String entradaAntiga = value.substring(10,15); // entrada
+                          if(posicaoAntiga == null) {
+                            posicaoAntiga = entradas.indexOf(entradaAntiga);
+                            posicaoAntesDaAntiga = entradas.indexOf(entradaAntiga);
+                          }
+                        } else {
+                          if(posicaoAntiga == null){
+                            posicaoAntiga = entradas.indexOf(entrada.key);
+                            posicaoAntesDaAntiga = entradas.indexOf(entrada.key);
+                          }
+                        }
+                        int posicaoAtual = entradas.indexOf(entrada.key);
+                        double posicao = scrollController.offset;
+                        if(posicaoAtual > posicaoAntiga){
+                          print("posicao atual maior que a antiga");
+                          posicao += 80.0;
+                        } else if(posicaoAtual < posicaoAntiga){
+                          print("posicao atual menor que a antiga");
+                          posicao -= 80.0;
+                        }
+                        scrollController.animateTo(posicao, curve: Curves.easeOut,
+                            duration: const Duration(milliseconds: 300));
+                        posicaoAntesDaAntiga = posicaoAntiga;
+                        posicaoAntiga = entradas.indexOf(entrada.key);
+                        return true;
+                      },
+                      onAccept: (funcionario) async{
+                        bool update = false;            // serve para saber se a transacao foi um update ou um insert
+                        String entradaAntiga;           // vai buscar a entrada antiga caso seja um update
+                        if(funcionario.contains("UPDATE")){
+                          // quando o funcionario arrastado foi um update
+                          // retiramos o update do nome e o id do evento
+                          // ex: 0001UPDATE15:30Joao Carlos
+                          update = true;
+                          int idEventoEmpregado = int.parse(funcionario.substring(0,4));
+                          if(idEventoEmpregado != this.eventosDia.indexOf(evento)) {
+                            // nao esta a dar update a um empregado do mesmo evento
+                            _mostrarAviso("Ups!", "Um empregado so pode comutar de horarios no mesmo evento");
+                            return;
+                          }
+                          entradaAntiga = funcionario.substring(10,15);
+                          funcionario = funcionario.substring(15);
+                          print("Recebi um update de $funcionario");
+                        }
+                        Empregado escolhido = _procurarEmp(funcionario);
                         if(evento.podeAdicionarMaisFuncionarios(entrada.key)) {
                           if(evento.horarioFuncionarios[entrada.key] == null){
                             // Se nao exister uma lista de funcionarios para este horario de entrada
@@ -469,11 +586,18 @@ Procura um empregado pelo nome
                             evento.horarioFuncionarios[entrada.key] = aux;
                             evento.empregados.add(escolhido);
                             evento.totalEmpregados++;
-                            _adicionarFuncionarioHorario(escolhido, evento, entrada.key).then((_) {
+                            if(update) {
+                              //eleminar da lista na bd
+                               _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                              //eleminar da lista em memoria
+                              evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
+                               evento.totalEmpregados--;
+                            }
+                             _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
                               setState(() {
                                 // altera o numero total de empregados
                               });
-                            });
+
                           }else {
                             // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
                             if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
@@ -481,21 +605,47 @@ Procura um empregado pelo nome
                               evento.horarioFuncionarios[entrada.key].add(escolhido);
                               evento.empregados.add(escolhido);
                               evento.totalEmpregados++;
-                              _adicionarFuncionarioHorario(escolhido, evento, entrada.key).then((_) {
+                              if(update) {
+                                //eleminar da lista na bd
+                                 _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                                //eleminar da lista em memoria
+                                evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
+                                 evento.totalEmpregados--;
+                              }
+                               _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
                                 setState(() {
                                   // altera o numero total de empregados
                                 });
-                              });
+
                             }
                           }
                         } else {
                           // aviso que ja tem o max funcionarios
-                          _mostrarAvisoHorarioCheio();
+                          if(!evento.horarioFuncionarios[entrada.key].contains(escolhido))
+                            _mostrarAvisoHorarioCheio();
                         }
                       },
                     )).toList(),
                   ),
                 ),
+                evento.horarios.isNotEmpty ?  DragTarget(
+                  builder: (context , List<String> CandidateData, rejectedData){
+                    return Container(
+                      padding: EdgeInsets.only(left: 50,right: 50),
+                      color: Colors.grey[400],
+                      child: Icon(Icons.keyboard_arrow_down,size: 15,),
+
+                    );
+                  },
+                  onWillAccept: (value){
+                    double posicao = scrollController.offset;
+                    print("OLHA O FILHO");
+                    scrollController.animateTo(posicao + 30.0, curve: Curves.easeOut,
+                        duration: const Duration(milliseconds: 300));
+                    return true;
+                  },
+
+                ) : Text(""),
               ],
             ),
           ),
@@ -554,7 +704,6 @@ int _totalEmpregadosTrabalhando(){
   @override
   Widget build(BuildContext context) {
     String title = getData();
-
 
 
     if(refreshCardEventos){
@@ -1145,13 +1294,10 @@ int _totalEmpregadosTrabalhando(){
                                 print("A guarda evento na bd");
                                 _addHorarioEventoBD(evento, entrada, saida, numEmpregados);
                                 setState(() {
-                                  precisoTudo = true;
+                                  evento.horarios[entrada] = saida;
+                                  evento.horarioEntradaComFuncionariosTotais[entrada] = numEmpregados;
                                 });
-                                
-
                                 Navigator.pop(context);
-
-
                               } 
                             },
                           ),
@@ -1295,6 +1441,31 @@ int _totalEmpregadosTrabalhando(){
 
 
 
+
+  /*
+  Aviso que ja existe um horario com essa hora de entrada
+   */
+  _mostrarAviso(String titulo, String content) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(titulo),
+            content: Text(content),
+            actions: <Widget>[
+              FlatButton(
+                child: Text("Entendi"),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              )
+            ],
+          );
+        }
+    );
+  }
+
+
   /*
   Aviso que ja existe um horario com essa hora de entrada
    */
@@ -1341,8 +1512,25 @@ int _totalEmpregadosTrabalhando(){
     );
   }
 
+  /// elemina um funcionario do horario antigo
+  _eleminarFuncionarioHorario(Empregado empregado, String entradaAntiga, Evento evento) async{
+    print("A eleminar ${empregado.nome} da entrada $entradaAntiga no evento ${evento.cliente.nome}");
+    // elminar do firebase
+    //print("Tamanho da lista de horarios ${evento.horarioFuncionarios[entradaAntiga]}");
+    //print(evento.horarioFuncionarios[entradaAntiga]);
+    int indiceEvento = this.eventosDia.indexOf(evento);
+    int indiceFuncionario = evento.horarioFuncionarios[entradaAntiga].length -1;
+    try {
+      await FirebaseDatabase.instance.reference().child('eventos').child(
+          getData()).child('$indiceEvento').child('horario').child(entradaAntiga)
+          .child('funcionarios')
+          .update({
+        indiceFuncionario.toString() : null
+      });
+      return;
+    } on Exception {
+      print("escexao");
+    }
 
-
-
-
+  }
 }
