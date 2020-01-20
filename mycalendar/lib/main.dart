@@ -218,8 +218,11 @@ class _MyHomePageState extends State<MyHomePage> {
               //print(infos['funcionarios']);
               List list = infos['funcionarios'];
               list.forEach((nomeEmpregado) {
-                totalEmpregados++;
-                listaAux.add(_procurarEmp(nomeEmpregado));
+                if(nomeEmpregado != null){
+                  totalEmpregados++;
+                  listaAux.add(_procurarEmp(nomeEmpregado));
+                } else print("encontrei um a null");
+
               });
               horario3[dataEntrada] = listaAux;
             }
@@ -354,13 +357,30 @@ Procura um empregado pelo nome
   Future<void> _adicionarFuncionarioHorario(Empregado empregado, Evento evento, String horaEntrada) async{
     print("A adicionar horário a um funcionário ...");
     int indiceEvento = this.eventosDia.indexOf(evento);
-    int indiceFuncionario = evento.horarioFuncionarios[horaEntrada].length -1;
+    int index;
     try {
-      await FirebaseDatabase.instance.reference().child('eventos').child(
+      FirebaseDatabase.instance.reference().child('eventos').child(
           getData()).child('$indiceEvento').child('horario').child(horaEntrada)
-          .child('funcionarios')
-          .update({
-        indiceFuncionario.toString() : empregado.nome
+          .child('funcionarios').once().then((lista){
+        if(lista.value != null){
+          List list = lista.value;
+          for(int i = 0 ; i < list.length ; i++){
+            //ocupar valores que foram removidos
+            if(list[i] == null) {
+              index = i;
+              break;  //para de procurar pq ja encontrou uma
+            }
+          }
+          if(index == null) index = list.length; // caso nao hajam valores removidos , ocupa o index da ultima posicao
+          print("index encontrado para este jovem > $index");
+
+        } else index =0;
+        FirebaseDatabase.instance.reference().child('eventos').child(
+            getData()).child('$indiceEvento').child('horario').child(horaEntrada)
+            .child('funcionarios')
+            .update({
+          index.toString() : empregado.nome
+        });
       });
       return;
     } on Exception {

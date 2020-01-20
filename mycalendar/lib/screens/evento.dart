@@ -36,7 +36,9 @@ class _VerEventoState extends State<VerEvento> {
   int posicaoAntiga;
   int posicaoAntesDaAntiga;
   Evento evento;
-  _VerEventoState(this.evento,this.empregados,this.eventosDia,this.eventos,this.clientes);
+  _VerEventoState(this.evento,this.empregados,this.eventosDia,this.eventos,this.clientes){
+
+  }
 
 
 
@@ -142,23 +144,38 @@ Procura um empregado pelo nome
       );
       listaDeCards.addAll(dispOcasional);
     }
-
     return listaDeCards;
-
   }
 
   /// Adiciona um funcionário a um dado horário na BD
   Future<void> _adicionarFuncionarioHorario(Empregado empregado, Evento evento, String horaEntrada) async{
     print("A adicionar horário a um funcionário ...");
     int indiceEvento = this.eventosDia.indexOf(evento);
-    int indiceFuncionario = evento.horarioFuncionarios[horaEntrada].length -1;
+    int index;
     try {
-      await FirebaseDatabase.instance.reference().child('eventos').child(
-          getData()).child('$indiceEvento').child('horario').child(horaEntrada)
-          .child('funcionarios')
-          .update({
-        indiceFuncionario.toString() : empregado.nome
-      });
+         FirebaseDatabase.instance.reference().child('eventos').child(
+            getData()).child('$indiceEvento').child('horario').child(horaEntrada)
+            .child('funcionarios').once().then((lista){
+              if(lista.value != null){
+                List list = lista.value;
+                for(int i = 0 ; i < list.length ; i++){
+                  //ocupar valores que foram removidos
+                  if(list[i] == null) {
+                    index = i;
+                    break;  //para de procurar pq ja encontrou uma
+                  }
+                }
+                if(index == null) index = list.length; // caso nao hajam valores removidos , ocupa o index da ultima posicao
+                print("index encontrado para este jovem > $index");
+
+              } else index =0;
+              FirebaseDatabase.instance.reference().child('eventos').child(
+                  getData()).child('$indiceEvento').child('horario').child(horaEntrada)
+                  .child('funcionarios')
+                  .update({
+                index.toString() : empregado.nome
+              });
+         });
       return;
     } on Exception {
       print("escexao");
@@ -394,6 +411,26 @@ Atualiza a lista de eventos do dia
                   _mostrarAddHorario(evento);
                 },
               ),
+              DragTarget(
+                builder: (context , List<String> CandidateData, rejectedData){
+                  return Icon(Icons.delete_forever,color: Colors.white70,);
+                },
+                onAccept: (funcionario){
+                  //apaga o empregado da lista
+                  if(funcionario.contains("UPDATE")){
+                    // quando o funcionario arrastado foi um update
+                    // retiramos o update do nome e o id do evento
+                    // ex: 0001UPDATE15:30Joao Carlos
+                    int idEventoEmpregado = int.parse(funcionario.substring(0,4));
+                    String entrada = funcionario.substring(10,15);
+                    funcionario = funcionario.substring(15);
+                    print("A eleminar $funcionario do id_evento $idEventoEmpregado da entrada $entrada");
+                    Empregado escolhido = _procurarEmp(funcionario);
+                    _eleminarFuncionarioHorarioBD(escolhido, entrada, evento);
+                    _eleminarEmpregadoHorario(escolhido,entrada);
+                  }
+                },
+              )
             ],
           ),
         ),
@@ -432,8 +469,6 @@ Atualiza a lista de eventos do dia
                     },
                     onWillAccept: (value){
                       double posicao = scrollController.offset;
-                      print("OLHA O FILHO");
-
                       scrollController.animateTo(posicao - 30.0, curve: Curves.easeOut,
                           duration: const Duration(milliseconds: 300));
                       return true;
@@ -540,7 +575,7 @@ Atualiza a lista de eventos do dia
                                 evento.totalEmpregados++;
                                 if(update) {
                                   //eleminar da lista na bd
-                                  _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                                  _eleminarFuncionarioHorarioBD(escolhido,entradaAntiga,evento);
                                   //eleminar da lista em memoria
                                   evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
                                   evento.totalEmpregados--;
@@ -559,7 +594,7 @@ Atualiza a lista de eventos do dia
                                   evento.totalEmpregados++;
                                   if(update) {
                                     //eleminar da lista na bd
-                                    _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                                    _eleminarFuncionarioHorarioBD(escolhido,entradaAntiga,evento);
                                     //eleminar da lista em memoria
                                     evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
                                     evento.totalEmpregados--;
@@ -604,17 +639,6 @@ Atualiza a lista de eventos do dia
           ],
         ));
   }
-
-
-
-
-
-
-
-
-
-
-
 
 
   /*
@@ -687,22 +711,24 @@ Atualiza a lista de eventos do dia
     );
   }
 
-  /// elemina um funcionario do horario antigo
-  _eleminarFuncionarioHorario(Empregado empregado, String entradaAntiga, Evento evento) async{
-    print("A eleminar ${empregado.nome} da entrada $entradaAntiga no evento ${evento.cliente.nome}");
-    // elminar do firebase
-    //print("Tamanho da lista de horarios ${evento.horarioFuncionarios[entradaAntiga]}");
-    //print(evento.horarioFuncionarios[entradaAntiga]);
+  /// elemina um funcionario do horario antigo na BD
+  _eleminarFuncionarioHorarioBD(Empregado empregado, String entradaAntiga, Evento evento) async{
     int indiceEvento = this.eventosDia.indexOf(evento);
-    int indiceFuncionario = evento.horarioFuncionarios[entradaAntiga].length -1;
+
     try {
-      await FirebaseDatabase.instance.reference().child('eventos').child(
+        FirebaseDatabase.instance.reference().child('eventos').child(
           getData()).child('$indiceEvento').child('horario').child(entradaAntiga)
           .child('funcionarios')
-          .update({
-        indiceFuncionario.toString() : null
-      });
-      return;
+          .once().then((info) {
+         List hey = info.value;
+         print(hey);
+          FirebaseDatabase.instance.reference().child('eventos').child(
+             getData()).child('$indiceEvento').child('horario').child(entradaAntiga)
+             .child('funcionarios')
+             .child('${hey.indexOf(empregado.nome)}').remove();
+         //print(hey);
+         return;
+       });
     } on Exception {
       print("escexao");
     }
@@ -881,5 +907,13 @@ Atualiza a lista de eventos do dia
       print("excepcao em guardar eventos bd");
     }
 
+  }
+
+  /// eleminar na lista em memoria um empregado para uma dada entrada
+  _eleminarEmpregadoHorario(Empregado escolhido, String entrada){
+    this.evento.horarioFuncionarios[entrada].remove(escolhido);
+    setState(() {
+        this.evento.totalEmpregados--;
+    });
   }
 }
