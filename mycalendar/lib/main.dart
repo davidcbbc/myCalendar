@@ -223,7 +223,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 if(nomeEmpregado != null){
                   totalEmpregados++;
                   Empregado emp = _procurarEmp(nomeEmpregado);
-                  _adicionarHorarioFuncionario(emp, infos['fim'].toString());
+                  _adicionarHorarioFuncionario(emp, infos['fim'].toString(),datinha);
                   listaAux.add(emp);
                 } else print("encontrei um a null");
 
@@ -609,7 +609,7 @@ Procura um empregado pelo nome
                             aux.add(escolhido);
                             evento.horarioFuncionarios[entrada.key] = aux;
                             evento.empregados.add(escolhido);
-                            _adicionarHorarioFuncionario(escolhido,entrada.value);
+                            _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
                             evento.totalEmpregados++;
                             if(update) {
                               //eleminar da lista na bd
@@ -631,7 +631,7 @@ Procura um empregado pelo nome
                               // se ainda nao tiver posto esse utilizador
                               evento.horarioFuncionarios[entrada.key].add(escolhido);
                               evento.empregados.add(escolhido);
-                              _adicionarHorarioFuncionario(escolhido,entrada.value);
+                              _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
                               evento.totalEmpregados++;
                               if(update) {
                                 //eleminar da lista na bd
@@ -820,74 +820,15 @@ int _totalEmpregadosTrabalhando(){
         bottomNavigationBar: Container(
           color: Colors.grey[800],
           child: Row(
+
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              FlatButton(
-                child: Text("MANHA",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  List<Empregado> empregadosAux = new List<Empregado>();
-                  this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
-                     empregadosAux.add(empregado);
-                    } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("manha")){
-                        empregadosAux.add(empregado);
-                      }
-                    }
 
-                  });
-                  this.empregadosEscolhidos = empregadosAux;
-                  setState(() {
-
-                  });
-
-                },
-              ),
-              FlatButton(
-                child: Text("TARDE",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  List<Empregado> empregadosAux = new List<Empregado>();
-                  this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
-                      empregadosAux.add(empregado);
-                    } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("tarde")){
-                        empregadosAux.add(empregado);
-                      }
-                    }
-                  });
-                  this.empregadosEscolhidos = empregadosAux;
-                  setState(() {
-
-                  });
-
-                },
-              ),
-              FlatButton(
-                child: Text("NOITE",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  List<Empregado> empregadosAux = new List<Empregado>();
-                  this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
-                      empregadosAux.add(empregado);
-                    } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("noite")){
-                        empregadosAux.add(empregado);
-                      }
-                    }
-                  });
-                  this.empregadosEscolhidos = empregadosAux;
-                  setState(() {
-                  });
-                },
-              ),
-              FlatButton(
-                child: Text("TODOS",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                    this.empregadosEscolhidos = this.empregados;
-                    setState(() {
-
-                    });
+              IconButton(
+                icon: Icon(Icons.access_time,color: Colors.white,),
+                onPressed: () {
+                  _mostrarTemposDoDia();
                 },
               ),
               Icon(
@@ -1577,7 +1518,101 @@ int _totalEmpregadosTrabalhando(){
         }
     );
   }
+   /// Mostra a opção de escolher os empregados com determinados horários
+  _mostrarTemposDoDia(){
+    showDialog(
+        context:context,
+    builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Horários"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                FlatButton(
+                child: Text("MANHÃ"),
+                onPressed: (){
+                  List<Empregado> empregadosAux = new List<Empregado>();
+                  this.empregados.forEach((empregado){
+                    if(empregado.horariosEmUso[_selectedDay] == null) {
+                      empregadosAux.add(empregado);
+                    } else {
+                      if(!empregado.horariosEmUso[_selectedDay].contains("manha")){
+                        empregadosAux.add(empregado);
+                      }
+                    }
 
+                  });
+                  this.empregadosEscolhidos = empregadosAux;
+                  setState(() {
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              FlatButton(
+                child: Text("TARDE"),
+                onPressed: (){
+                  List<Empregado> empregadosAux = new List<Empregado>();
+                  this.empregados.forEach((empregado){
+                    if(empregado.horariosEmUso[_selectedDay] == null) {
+                      empregadosAux.add(empregado);
+                    } else {
+                      if(!empregado.horariosEmUso[_selectedDay].contains("tarde")){
+                        empregadosAux.add(empregado);
+                      } else {
+                        print("${empregado.nome} não entrou");
+                        print(empregado.horariosEmUso);
+                      }
+                    }
+                  });
+                  this.empregadosEscolhidos = empregadosAux;
+                  setState(() {
+
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              FlatButton(
+                child: Text("NOITE"),
+                onPressed: (){
+                  List<Empregado> empregadosAux = new List<Empregado>();
+                  this.empregados.forEach((empregado){
+                    if(empregado.horariosEmUso[_selectedDay] == null) {
+                      empregadosAux.add(empregado);
+                    } else {
+                      if(!empregado.horariosEmUso[_selectedDay].contains("noite")){
+                        empregadosAux.add(empregado);
+                      }
+                    }
+                  });
+                  this.empregadosEscolhidos = empregadosAux;
+                  setState(() {
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              FlatButton(
+                child: Text("TODOS"),
+                onPressed: (){
+                  this.empregadosEscolhidos = this.empregados;
+                  setState(() {
+
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ],
+            ),
+            actions: <Widget>[
+              FlatButton(
+                child: Text("Sair"),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              )
+            ],
+          );
+    });
+  }
   /// elemina um funcionario do horario antigo
   _eleminarFuncionarioHorario(Empregado empregado, String entradaAntiga, Evento evento) async{
     print("A eleminar ${empregado.nome} da entrada $entradaAntiga no evento ${evento.cliente.nome}");
@@ -1601,12 +1636,12 @@ int _totalEmpregadosTrabalhando(){
   }
 
   // adicionar um horario ao funcionario
-  void _adicionarHorarioFuncionario(Empregado escolhido, String tipo) {
-    if(escolhido.horariosEmUso[_selectedDay] == null){
+  void _adicionarHorarioFuncionario(Empregado escolhido, String tipo, DateTime dia) {
+    if(escolhido.horariosEmUso[dia] == null){
       // cria lista
-      escolhido.horariosEmUso[_selectedDay] = new List<String>();
+      escolhido.horariosEmUso[dia] = new List<String>();
     }
-    escolhido.horariosEmUso[_selectedDay].add(tipo);
+    escolhido.horariosEmUso[dia].add(tipo);
   }
 
   // elemina horario a um funcionario
@@ -1614,5 +1649,7 @@ int _totalEmpregadosTrabalhando(){
     String tipoAux = evento.horarios[tipo];
     escolhido.horariosEmUso[_selectedDay].remove(tipoAux);
   }
+
+
 
 }
