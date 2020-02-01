@@ -51,7 +51,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int funcionariosTrabalhar = 0;  // numero de funcionarios a trabalhar no dia _selectedDay
   bool refreshCardEventos = false;  // serve para dar refresh a uma card de evento , usado quando um funcionario quer ser adicionado a um evento
   bool mudeiEmpregados = false; // quando se muda o tipo de empregados q se quer , manha , tarde , noite , etc..
-
+  String tipoDeHorario = "Todos"; // string que mudar de acordo com os horarios dos funcionarios escolhidos MANHA / TARDE / NOITE / TODOS
 
   @protected
   @mustCallSuper
@@ -319,6 +319,8 @@ Procura um empregado pelo nome
       }
     });
 
+    listaDeCards.add(Text("$tipoDeHorario Disp.",style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),textAlign: TextAlign.center));
+    listaDeCards.add(SizedBox(height: 5.0,));
     if (dispTotal.length > 0) {
       listaDeCards.add(
         Text(
@@ -505,7 +507,7 @@ Procura um empregado pelo nome
                     double posicao = scrollController.offset;
                     print("OLHA O FILHO");
 
-                      scrollController.animateTo(posicao - 30.0, curve: Curves.easeOut,
+                      scrollController.animateTo(posicao - 10.0, curve: Curves.easeOut,
                         duration: const Duration(milliseconds: 300));
                     return true;
                   },
@@ -602,53 +604,59 @@ Procura um empregado pelo nome
                         }
                         Empregado escolhido = _procurarEmp(funcionario);
                         if(evento.podeAdicionarMaisFuncionarios(entrada.key)) {
-                          if(evento.horarioFuncionarios[entrada.key] == null){
-                            // Se nao exister uma lista de funcionarios para este horario de entrada
-                            // Vamos criar
-                            List<Empregado> aux = new List<Empregado>();
-                            aux.add(escolhido);
-                            evento.horarioFuncionarios[entrada.key] = aux;
-                            evento.empregados.add(escolhido);
-                            _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
-                            evento.totalEmpregados++;
-                            if(update) {
-                              //eleminar da lista na bd
-                               _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
-                               // eleminar horario a funcionario
-                               _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
-                              //eleminar da lista em memoria
-                              evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
-                               evento.totalEmpregados--;
-                            }
-                             _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
-                              setState(() {
-                                // altera o numero total de empregados
-                              });
-
-                          }else {
-                            // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
-                            if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
-                              // se ainda nao tiver posto esse utilizador
-                              evento.horarioFuncionarios[entrada.key].add(escolhido);
+                          if(escolhido.podeTrabalhar(DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day), entrada.value) || update){
+                            if(evento.horarioFuncionarios[entrada.key] == null){
+                              // Se nao exister uma lista de funcionarios para este horario de entrada
+                              // Vamos criar
+                              List<Empregado> aux = new List<Empregado>();
+                              aux.add(escolhido);
+                              evento.horarioFuncionarios[entrada.key] = aux;
                               evento.empregados.add(escolhido);
                               _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
                               evento.totalEmpregados++;
                               if(update) {
                                 //eleminar da lista na bd
-                                 _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
-                                 // eleminar horario a funcionario
-                                 _eleminarHorarioFuncionario(escolhido, entradaAntiga,evento);
+                                _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                                // eleminar horario a funcionario
+                                _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
                                 //eleminar da lista em memoria
                                 evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
-                                 evento.totalEmpregados--;
+                                evento.totalEmpregados--;
                               }
-                               _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
+                              _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
+                              setState(() {
+                                // altera o numero total de empregados
+                              });
+
+                            }else {
+                              // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
+                              if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
+                                // se ainda nao tiver posto esse utilizador
+                                evento.horarioFuncionarios[entrada.key].add(escolhido);
+                                evento.empregados.add(escolhido);
+                                _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
+                                evento.totalEmpregados++;
+                                if(update) {
+                                  //eleminar da lista na bd
+                                  _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                                  // eleminar horario a funcionario
+                                  _eleminarHorarioFuncionario(escolhido, entradaAntiga,evento);
+                                  //eleminar da lista em memoria
+                                  evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
+                                  evento.totalEmpregados--;
+                                }
+                                _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
                                 setState(() {
                                   // altera o numero total de empregados
                                 });
 
+                              }
                             }
+                          } else {
+                            // nao pode trabaljar nesta data pq esta ocupado
+                            _mostrarAviso("Ocupado", "Este funcionario ja trabalha no horario da ${entrada.value}");
                           }
+
                         } else {
                           // aviso que ja tem o max funcionarios
                           if(!evento.horarioFuncionarios[entrada.key].contains(escolhido))
@@ -670,7 +678,7 @@ Procura um empregado pelo nome
                   onWillAccept: (value){
                     double posicao = scrollController.offset;
                     print("OLHA O FILHO");
-                    scrollController.animateTo(posicao + 30.0, curve: Curves.easeOut,
+                    scrollController.animateTo(posicao + 10.0, curve: Curves.easeOut,
                         duration: const Duration(milliseconds: 300));
                     return true;
                   },
@@ -1531,12 +1539,13 @@ int _totalEmpregadosTrabalhando(){
                 FlatButton(
                 child: Text("MANHÃ"),
                 onPressed: (){
+                  DateTime dataSemHoras = DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day);
                   List<Empregado> empregadosAux = new List<Empregado>();
                   this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
+                    if(empregado.horariosEmUso[dataSemHoras] == null) {
                       empregadosAux.add(empregado);
                     } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("manha")){
+                      if(!empregado.horariosEmUso[dataSemHoras].contains("manha")){
                         empregadosAux.add(empregado);
                       }
                     }
@@ -1544,6 +1553,7 @@ int _totalEmpregadosTrabalhando(){
                   });
                   this.empregadosEscolhidos = empregadosAux;
                   setState(() {
+                    tipoDeHorario = "Manha";
                   });
                   Navigator.pop(context);
                 },
@@ -1551,22 +1561,25 @@ int _totalEmpregadosTrabalhando(){
               FlatButton(
                 child: Text("TARDE"),
                 onPressed: (){
+                  DateTime dataSemHoras = DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day);
                   List<Empregado> empregadosAux = new List<Empregado>();
                   this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
+                    if(empregado.horariosEmUso[dataSemHoras] == null) {
+                      //print("${empregado.nome} - ${empregado.horariosEmUso}");
                       empregadosAux.add(empregado);
                     } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("tarde")){
+                      if(!empregado.horariosEmUso[dataSemHoras].contains("tarde")){
+                        //print("${empregado.nome} - ${empregado.horariosEmUso}");
                         empregadosAux.add(empregado);
                       } else {
-                        print("${empregado.nome} não entrou");
-                        print(empregado.horariosEmUso);
+                        //print("${empregado.nome} não entrou");
+                        //print(empregado.horariosEmUso);
                       }
                     }
                   });
                   this.empregadosEscolhidos = empregadosAux;
                   setState(() {
-
+                    tipoDeHorario = "Tarde";
                   });
                   Navigator.pop(context);
                 },
@@ -1574,18 +1587,20 @@ int _totalEmpregadosTrabalhando(){
               FlatButton(
                 child: Text("NOITE"),
                 onPressed: (){
+                  DateTime dataSemHoras = DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day);
                   List<Empregado> empregadosAux = new List<Empregado>();
                   this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
+                    if(empregado.horariosEmUso[dataSemHoras] == null) {
                       empregadosAux.add(empregado);
                     } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("noite")){
+                      if(!empregado.horariosEmUso[dataSemHoras].contains("noite")){
                         empregadosAux.add(empregado);
                       }
                     }
                   });
                   this.empregadosEscolhidos = empregadosAux;
                   setState(() {
+                    tipoDeHorario = "Noite";
                   });
                   Navigator.pop(context);
                 },
@@ -1595,7 +1610,7 @@ int _totalEmpregadosTrabalhando(){
                 onPressed: (){
                   this.empregadosEscolhidos = this.empregados;
                   setState(() {
-
+                    tipoDeHorario = "Todos";
                   });
                   Navigator.pop(context);
                 },
@@ -1613,6 +1628,7 @@ int _totalEmpregadosTrabalhando(){
           );
     });
   }
+
   /// elemina um funcionario do horario antigo
   _eleminarFuncionarioHorario(Empregado empregado, String entradaAntiga, Evento evento) async{
     print("A eleminar ${empregado.nome} da entrada $entradaAntiga no evento ${evento.cliente.nome}");
@@ -1637,17 +1653,18 @@ int _totalEmpregadosTrabalhando(){
 
   // adicionar um horario ao funcionario
   void _adicionarHorarioFuncionario(Empregado escolhido, String tipo, DateTime dia) {
-    if(escolhido.horariosEmUso[dia] == null){
+    DateTime dataSemHora = DateTime(dia.year,dia.month,dia.day);
+    if(escolhido.horariosEmUso[dataSemHora] == null){
       // cria lista
-      escolhido.horariosEmUso[dia] = new List<String>();
+      escolhido.horariosEmUso[dataSemHora] = new List<String>();
     }
-    escolhido.horariosEmUso[dia].add(tipo);
+    escolhido.horariosEmUso[dataSemHora].add(tipo);
   }
 
   // elemina horario a um funcionario
   void _eleminarHorarioFuncionario(Empregado escolhido, String tipo , Evento evento) {
     String tipoAux = evento.horarios[tipo];
-    escolhido.horariosEmUso[_selectedDay].remove(tipoAux);
+    escolhido.horariosEmUso[DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day)].remove(tipoAux);
   }
 
 

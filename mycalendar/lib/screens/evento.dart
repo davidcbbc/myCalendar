@@ -37,6 +37,8 @@ class _VerEventoState extends State<VerEvento> {
   int posicaoAntesDaAntiga;
   Evento evento;
   List<Empregado> empregadosEscolhidos = List<Empregado>(); // Lista de empregados com certo tip ( de manha , etc...)
+  String tipoDeHorario = "Todos"; // string que mudar de acordo com os horarios dos funcionarios escolhidos MANHA / TARDE / NOITE / TODOS
+
 
   _VerEventoState(this.evento,this.empregados,this.eventosDia,this.eventos,this.clientes){
     this.empregadosEscolhidos = this.empregados;
@@ -113,7 +115,8 @@ Procura um empregado pelo nome
         ));
       }
     });
-
+    listaDeCards.add(Text("$tipoDeHorario Disp.",style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),textAlign: TextAlign.center));
+    listaDeCards.add(SizedBox(height: 5.0,));
     if (dispTotal.length > 0) {
       listaDeCards.add(
         Text(
@@ -310,18 +313,24 @@ Procura um empregado pelo nome
             horario1[dataEntrada] = infos['total'];
             horario2[dataEntrada] = infos['fim'];
             if(infos['funcionarios'] != null){
+
+
               // buscar os funcionarios para os horários correspondetes
               List<Empregado> listaAux = new List<Empregado>();
               //print(infos['funcionarios']);
               List list = infos['funcionarios'];
               list.forEach((nomeEmpregado) {
-                totalEmpregados++;
-                Empregado emp = _procurarEmp(nomeEmpregado);
-                _adicionarHorarioFuncionario(emp, infos['fim'].toString());
-                listaAux.add(emp);
+                if(nomeEmpregado != null){
+                  totalEmpregados++;
+                  Empregado emp = _procurarEmp(nomeEmpregado);
+                  _adicionarHorarioFuncionario(emp, infos['fim'].toString(),datinha);
+                  listaAux.add(emp);
+                } else print("encontrei um a null");
+
               });
               horario3[dataEntrada] = listaAux;
             }
+
           });
         }
         if( cliente != null) {
@@ -340,7 +349,6 @@ Procura um empregado pelo nome
     this.eventos = eventosAux;
     return eventosAux;
   }
-
 
 
 /*
@@ -373,6 +381,7 @@ Atualiza a lista de eventos do dia
 
   @override
   Widget build(BuildContext context) {
+    //print(this.empregadosEscolhidos);
     String title = getData();
     ScrollController scrollController = new ScrollController();
 
@@ -402,79 +411,17 @@ Atualiza a lista de eventos do dia
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
+              IconButton(
+                icon: Icon(Icons.access_time,color: Colors.white,),
+                onPressed: () {
+                  _mostrarTemposDoDia();
+                },
+              ),
               Icon(
                 Icons.group,
                 color: Colors.grey,
               ),
               Text(evento.totalEmpregados.toString(), style: TextStyle(color: Colors.white),),
-              FlatButton(
-                child: Text("MANHA",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  List<Empregado> empregadosAux = new List<Empregado>();
-                  this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
-                      empregadosAux.add(empregado);
-                    } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("manha")){
-                        empregadosAux.add(empregado);
-                      }
-                    }
-
-                  });
-                  this.empregadosEscolhidos = empregadosAux;
-                  setState(() {
-
-                  });
-
-                },
-              ),
-              FlatButton(
-                child: Text("TARDE",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  List<Empregado> empregadosAux = new List<Empregado>();
-                  this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
-                      empregadosAux.add(empregado);
-                    } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("tarde")){
-                        empregadosAux.add(empregado);
-                      }
-                    }
-                  });
-                  this.empregadosEscolhidos = empregadosAux;
-                  setState(() {
-
-                  });
-
-                },
-              ),
-              FlatButton(
-                child: Text("NOITE",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  List<Empregado> empregadosAux = new List<Empregado>();
-                  this.empregados.forEach((empregado){
-                    if(empregado.horariosEmUso[_selectedDay] == null) {
-                      empregadosAux.add(empregado);
-                    } else {
-                      if(!empregado.horariosEmUso[_selectedDay].contains("noite")){
-                        empregadosAux.add(empregado);
-                      }
-                    }
-                  });
-                  this.empregadosEscolhidos = empregadosAux;
-                  setState(() {
-                  });
-                },
-              ),
-              FlatButton(
-                child: Text("TODOS",style: TextStyle(color: Colors.white),),
-                onPressed: (){
-                  this.empregadosEscolhidos = this.empregados;
-                  setState(() {
-
-                  });
-                },
-              ),
               IconButton(
                 icon: Icon(
                   Icons.alarm_add,
@@ -569,7 +516,7 @@ Atualiza a lista de eventos do dia
                                   children: <Widget>[
                                     Text("${entrada.key}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 20,color: Colors.grey[300])),
                                     //Text("-",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 8,color: Colors.grey[300])),
-                                    Text("até ${entrada.value}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 10,color: Colors.grey[300])),
+                                    Text("${entrada.value}",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 10,color: Colors.grey[300])),
                                     //SizedBox(height: 10,),
                                     Column(children: listaEmpregadosPorHorario(evento, entrada.key)),
                                     Row(
@@ -633,41 +580,21 @@ Atualiza a lista de eventos do dia
                                 return;
                               }
                               entradaAntiga = funcionario.substring(10,15);
+                              print(entradaAntiga);
                               funcionario = funcionario.substring(15);
                               print("Recebi um update de $funcionario");
                             }
                             Empregado escolhido = _procurarEmp(funcionario);
                             if(evento.podeAdicionarMaisFuncionarios(entrada.key)) {
-                              if(evento.horarioFuncionarios[entrada.key] == null){
-                                // Se nao exister uma lista de funcionarios para este horario de entrada
-                                // Vamos criar
-                                List<Empregado> aux = new List<Empregado>();
-                                aux.add(escolhido);
-                                evento.horarioFuncionarios[entrada.key] = aux;
-                                evento.empregados.add(escolhido);
-                                _adicionarHorarioFuncionario(escolhido,entrada.value);
-                                evento.totalEmpregados++;
-                                if(update) {
-                                  //eleminar da lista na bd
-                                  _eleminarFuncionarioHorarioBD(escolhido,entradaAntiga,evento);
-                                  // eleminar horario a funcionario
-                                  _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
-                                  //eleminar da lista em memoria
-                                  evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
-                                  evento.totalEmpregados--;
-                                }
-                                _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
-                                setState(() {
-                                  // altera o numero total de empregados
-                                });
-
-                              }else {
-                                // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
-                                if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
-                                  // se ainda nao tiver posto esse utilizador
-                                  evento.horarioFuncionarios[entrada.key].add(escolhido);
+                              if(escolhido.podeTrabalhar(DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day), entrada.value) || update){
+                                if(evento.horarioFuncionarios[entrada.key] == null){
+                                  // Se nao exister uma lista de funcionarios para este horario de entrada
+                                  // Vamos criar
+                                  List<Empregado> aux = new List<Empregado>();
+                                  aux.add(escolhido);
+                                  evento.horarioFuncionarios[entrada.key] = aux;
                                   evento.empregados.add(escolhido);
-                                  _adicionarHorarioFuncionario(escolhido,entrada.value);
+                                  _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
                                   evento.totalEmpregados++;
                                   if(update) {
                                     //eleminar da lista na bd
@@ -683,8 +610,35 @@ Atualiza a lista de eventos do dia
                                     // altera o numero total de empregados
                                   });
 
+                                }else {
+                                  // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
+                                  if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
+                                    // se ainda nao tiver posto esse utilizador
+                                    evento.horarioFuncionarios[entrada.key].add(escolhido);
+                                    evento.empregados.add(escolhido);
+                                    _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
+                                    evento.totalEmpregados++;
+                                    if(update) {
+                                      //eleminar da lista na bd
+                                      _eleminarFuncionarioHorarioBD(escolhido,entradaAntiga,evento);
+                                      // eleminar horario a funcionario
+                                      _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
+                                      //eleminar da lista em memoria
+                                      evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
+                                      evento.totalEmpregados--;
+                                    }
+                                    _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
+                                    setState(() {
+                                      // altera o numero total de empregados
+                                    });
+
+                                  }
                                 }
+                              } else {
+                                // nao pode trabaljar nesta data pq esta ocupado
+                                _mostrarAviso("Ocupado", "Este funcionario ja trabalha no horario da ${entrada.value}");
                               }
+
                             } else {
                               // aviso que ja tem o max funcionarios
                               if(!evento.horarioFuncionarios[entrada.key].contains(escolhido))
@@ -818,9 +772,7 @@ Atualiza a lista de eventos do dia
   _mostrarAddHorario(Evento evento) {
     final _formKey = GlobalKey<FormState>();
     var controllerEntrada = new MaskedTextController(mask: '00:00');
-    var controllerSaida = new MaskedTextController(mask: '00:00');
     String entrada;
-    String saida;
     int numEmpregados;
 
     showDialog(
@@ -869,37 +821,6 @@ Atualiza a lista de eventos do dia
                       ),
                       SizedBox(height: 20,),
                       TextFormField(
-                        // hora saida
-                        keyboardType: TextInputType.number,
-                        validator: (horaEntrada) {
-                          if(horaEntrada.isEmpty) return "Insere uma hora de saida";
-                          if(horaEntrada.length != 5) return "Insere 4 numeros";
-                          int hora = int.parse(horaEntrada.substring(0,2));
-                          int minuto = int.parse(horaEntrada.substring(3,5));
-                          if(hora > 24 || hora < 0 || minuto > 60 || minuto < 0) return "Insere uma hora valida (hh:mm)";
-                          return null;
-                        },
-                        controller: controllerSaida,
-                        decoration: InputDecoration(
-                          focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.green),
-                              borderRadius: BorderRadius.all(Radius.circular(12.0))
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.grey),
-                            borderRadius: BorderRadius.all(Radius.circular(12.0)),
-                          ),
-                          icon: Icon(Icons.arrow_back),
-                          hintText: "Hora Saida",
-                          contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 30.0, 10.0),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(32.0)),
-                        ),
-                        onSaved: (value) {
-                          saida = value;
-                        },
-                      ),
-                      SizedBox(height: 20,),
-                      TextFormField(
                         // numero funcionarios
                         keyboardType: TextInputType.number,
                         validator: (quantidade) {
@@ -942,9 +863,14 @@ Atualiza a lista de eventos do dia
                                   return;
                                 }
                                 print("A guarda evento na bd");
-                                _addHorarioEventoBD(evento, entrada, saida, numEmpregados);
+                                String tipo;
+                                int hora = int.parse(entrada.substring(0,2));
+                                if(hora >= 5 && hora <=11) tipo = "manha";
+                                else if(hora > 11 && hora <=17) tipo = "tarde";
+                                else tipo = "noite";
+                                _addHorarioEventoBD(evento, entrada, tipo, numEmpregados);
                                 setState(() {
-                                  evento.horarios[entrada] = saida;
+                                  evento.horarios[entrada] = tipo;
                                   evento.horarioEntradaComFuncionariosTotais[entrada] = numEmpregados;
                                 });
                                 Navigator.pop(context);
@@ -997,18 +923,124 @@ Atualiza a lista de eventos do dia
   }
 
   // adicionar um horario ao funcionario
-  void _adicionarHorarioFuncionario(Empregado escolhido, String tipo) {
-    if(escolhido.horariosEmUso[_selectedDay] == null){
+  void _adicionarHorarioFuncionario(Empregado escolhido, String tipo, DateTime dia) {
+    DateTime dataSemHora = DateTime(dia.year,dia.month,dia.day);
+    if(escolhido.horariosEmUso[dataSemHora] == null){
       // cria lista
-      escolhido.horariosEmUso[_selectedDay] = new List<String>();
+      escolhido.horariosEmUso[dataSemHora] = new List<String>();
     }
-    escolhido.horariosEmUso[_selectedDay].add(tipo);
+    escolhido.horariosEmUso[dataSemHora].add(tipo);
   }
 
   // elemina horario a um funcionario
   void _eleminarHorarioFuncionario(Empregado escolhido, String tipo , Evento evento) {
     String tipoAux = evento.horarios[tipo];
-    escolhido.horariosEmUso[_selectedDay].remove(tipoAux);
+    escolhido.horariosEmUso[DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day)].remove(tipoAux);
+  }
+
+  /// Mostra a opção de escolher os empregados com determinados horários
+  _mostrarTemposDoDia(){
+    showDialog(
+        context:context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Horários"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                FlatButton(
+                  child: Text("MANHÃ"),
+                  onPressed: (){
+                    DateTime dataSemHoras = DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day);
+                    List<Empregado> empregadosAux = new List<Empregado>();
+
+                    this.empregados.forEach((empregado){
+                      if(empregado.horariosEmUso[dataSemHoras] == null) {
+                        print("${empregado.nome} - ${empregado.horariosEmUso}");
+                        empregadosAux.add(empregado);
+                      } else {
+                        if(!empregado.horariosEmUso[dataSemHoras].contains("manha")){
+                          empregadosAux.add(empregado);
+                        }
+                      }
+
+                    });
+                    this.empregadosEscolhidos = empregadosAux;
+                    setState(() {
+                      tipoDeHorario = "Manha";
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                FlatButton(
+                  child: Text("TARDE"),
+                  onPressed: (){
+                    DateTime dataSemHoras = DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day);
+                    print(dataSemHoras.toString());
+                    List<Empregado> empregadosAux = new List<Empregado>();
+                    this.empregados.forEach((empregado){
+                      print("${empregado.nome} - ${empregado.horariosEmUso}");
+                      if(empregado.horariosEmUso[dataSemHoras] == null) {
+                        empregadosAux.add(empregado);
+                      } else {
+                        if(!empregado.horariosEmUso[dataSemHoras].contains("tarde")){
+                          empregadosAux.add(empregado);
+                        } else {
+                          print("${empregado.nome} não entrou");
+                          print(empregado.horariosEmUso);
+                        }
+                      }
+                    });
+                    this.empregadosEscolhidos = empregadosAux;
+                    setState(() {
+                      tipoDeHorario = "Tarde";
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                FlatButton(
+                  child: Text("NOITE"),
+                  onPressed: (){
+                    DateTime dataSemHoras = DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day);
+                    List<Empregado> empregadosAux = new List<Empregado>();
+                    this.empregados.forEach((empregado){
+                      if(empregado.horariosEmUso[dataSemHoras] == null) {
+                        empregadosAux.add(empregado);
+                      } else {
+                        if(!empregado.horariosEmUso[dataSemHoras].contains("noite")){
+                          empregadosAux.add(empregado);
+                        }
+                      }
+                    });
+                    this.empregadosEscolhidos = empregadosAux;
+                    setState(() {
+                      tipoDeHorario = "Noite";
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                FlatButton(
+                  child: Text("TODOS"),
+                  onPressed: (){
+                    this.empregadosEscolhidos = this.empregados;
+                    setState(() {
+                      tipoDeHorario = "Todos";
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              FlatButton(
+                child: Text("Sair"),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              )
+            ],
+          );
+        });
   }
 
 
