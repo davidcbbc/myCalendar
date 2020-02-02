@@ -420,7 +420,7 @@ Procura um empregado pelo nome
             child: Container(
               child: Text(
                 empregado.nome,
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -605,34 +605,15 @@ Procura um empregado pelo nome
                         Empregado escolhido = _procurarEmp(funcionario);
                         if(evento.podeAdicionarMaisFuncionarios(entrada.key)) {
                           if(escolhido.podeTrabalhar(DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day), entrada.value) || update){
-                            if(evento.horarioFuncionarios[entrada.key] == null){
-                              // Se nao exister uma lista de funcionarios para este horario de entrada
-                              // Vamos criar
-                              List<Empregado> aux = new List<Empregado>();
-                              aux.add(escolhido);
-                              evento.horarioFuncionarios[entrada.key] = aux;
-                              evento.empregados.add(escolhido);
-                              _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
-                              evento.totalEmpregados++;
-                              if(update) {
-                                //eleminar da lista na bd
-                                _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
-                                // eleminar horario a funcionario
-                                _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
-                                //eleminar da lista em memoria
-                                evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
-                                evento.totalEmpregados--;
-                              }
-                              _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
-                              setState(() {
-                                // altera o numero total de empregados
-                              });
-
-                            }else {
-                              // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
-                              if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
-                                // se ainda nao tiver posto esse utilizador
-                                evento.horarioFuncionarios[entrada.key].add(escolhido);
+                            if(escolhido.jaTrabalha(entrada.key, DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day), this.eventosDia) && !update){
+                            _mostrarAviso("A trabalhar...", "Este funcinario ja se encontra a trabalhar dentro deste horario neste dia");
+                            }else{
+                              if(evento.horarioFuncionarios[entrada.key] == null){
+                                // Se nao exister uma lista de funcionarios para este horario de entrada
+                                // Vamos criar
+                                List<Empregado> aux = new List<Empregado>();
+                                aux.add(escolhido);
+                                evento.horarioFuncionarios[entrada.key] = aux;
                                 evento.empregados.add(escolhido);
                                 _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
                                 evento.totalEmpregados++;
@@ -640,7 +621,7 @@ Procura um empregado pelo nome
                                   //eleminar da lista na bd
                                   _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
                                   // eleminar horario a funcionario
-                                  _eleminarHorarioFuncionario(escolhido, entradaAntiga,evento);
+                                  _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
                                   //eleminar da lista em memoria
                                   evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
                                   evento.totalEmpregados--;
@@ -650,8 +631,32 @@ Procura um empregado pelo nome
                                   // altera o numero total de empregados
                                 });
 
+                              }else {
+                                // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
+                                if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
+                                  // se ainda nao tiver posto esse utilizador
+                                  evento.horarioFuncionarios[entrada.key].add(escolhido);
+                                  evento.empregados.add(escolhido);
+                                  _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
+                                  evento.totalEmpregados++;
+                                  if(update) {
+                                    //eleminar da lista na bd
+                                    _eleminarFuncionarioHorario(escolhido,entradaAntiga,evento);
+                                    // eleminar horario a funcionario
+                                    _eleminarHorarioFuncionario(escolhido, entradaAntiga,evento);
+                                    //eleminar da lista em memoria
+                                    evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
+                                    evento.totalEmpregados--;
+                                  }
+                                  _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
+                                  setState(() {
+                                    // altera o numero total de empregados
+                                  });
+
+                                }
                               }
                             }
+
                           } else {
                             // nao pode trabaljar nesta data pq esta ocupado
                             _mostrarAviso("Ocupado", "Este funcionario ja trabalha no horario da ${entrada.value}");
@@ -742,6 +747,7 @@ int _totalEmpregadosTrabalhando(){
   @override
   Widget build(BuildContext context) {
     String title = getData();
+
 
 
     if(refreshCardEventos){
@@ -1037,9 +1043,9 @@ int _totalEmpregadosTrabalhando(){
                           print("OLHA $newValue");
                         },
                       onValueChanged: (disponibilidade) {
-                          if(disponibilidade == "Total") disp = "DIS_TOTAL";
-                          if(disponibilidade == "Reduzida") disp = "DIS_REDUZIDA";
-                          if(disponibilidade == "Ocasional") disp = "DIS_OCASIONAL";
+                          if(disponibilidade == "Total") disp = "DISP_TOTAL";
+                          if(disponibilidade == "Reduzida") disp = "DISP_REDUZIDA";
+                          if(disponibilidade == "Ocasional") disp = "DISP_OCASIONAL";
                       },
                     ),
                     SizedBox(height: 20,),

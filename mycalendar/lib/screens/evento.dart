@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -26,7 +27,6 @@ class VerEvento extends StatefulWidget {
 }
 
 class _VerEventoState extends State<VerEvento> {
-  DateTime _selectedDay = DateTime.now();
   List<Empregado> empregados = List<Empregado>(); // Lista de empregados atualizados ou nao da base de dados
   List<Evento> eventos = List<Evento>();
   List<Cliente> clientes = List<Cliente>();
@@ -36,12 +36,14 @@ class _VerEventoState extends State<VerEvento> {
   int posicaoAntiga;
   int posicaoAntesDaAntiga;
   Evento evento;
+  DateTime _selectedDay;
   List<Empregado> empregadosEscolhidos = List<Empregado>(); // Lista de empregados com certo tip ( de manha , etc...)
   String tipoDeHorario = "Todos"; // string que mudar de acordo com os horarios dos funcionarios escolhidos MANHA / TARDE / NOITE / TODOS
 
 
   _VerEventoState(this.evento,this.empregados,this.eventosDia,this.eventos,this.clientes){
     this.empregadosEscolhidos = this.empregados;
+    this._selectedDay = evento.data;
   }
 
 
@@ -211,7 +213,7 @@ Procura um empregado pelo nome
             child: Container(
               child: Text(
                 empregado.nome,
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold,color: Colors.white),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -381,7 +383,7 @@ Atualiza a lista de eventos do dia
 
   @override
   Widget build(BuildContext context) {
-    //print(this.empregadosEscolhidos);
+    print(this.evento.toString());
     String title = getData();
     ScrollController scrollController = new ScrollController();
 
@@ -587,34 +589,15 @@ Atualiza a lista de eventos do dia
                             Empregado escolhido = _procurarEmp(funcionario);
                             if(evento.podeAdicionarMaisFuncionarios(entrada.key)) {
                               if(escolhido.podeTrabalhar(DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day), entrada.value) || update){
-                                if(evento.horarioFuncionarios[entrada.key] == null){
-                                  // Se nao exister uma lista de funcionarios para este horario de entrada
-                                  // Vamos criar
-                                  List<Empregado> aux = new List<Empregado>();
-                                  aux.add(escolhido);
-                                  evento.horarioFuncionarios[entrada.key] = aux;
-                                  evento.empregados.add(escolhido);
-                                  _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
-                                  evento.totalEmpregados++;
-                                  if(update) {
-                                    //eleminar da lista na bd
-                                    _eleminarFuncionarioHorarioBD(escolhido,entradaAntiga,evento);
-                                    // eleminar horario a funcionario
-                                    _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
-                                    //eleminar da lista em memoria
-                                    evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
-                                    evento.totalEmpregados--;
-                                  }
-                                  _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
-                                  setState(() {
-                                    // altera o numero total de empregados
-                                  });
-
-                                }else {
-                                  // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
-                                  if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
-                                    // se ainda nao tiver posto esse utilizador
-                                    evento.horarioFuncionarios[entrada.key].add(escolhido);
+                                if(escolhido.jaTrabalha(entrada.key, DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day), this.eventosDia)){
+                                  _mostrarAviso("A trabalhar...", "Este funcinario ja se encontra a trabalhar dentro deste horario neste dia");
+                                }else{
+                                  if(evento.horarioFuncionarios[entrada.key] == null){
+                                    // Se nao exister uma lista de funcionarios para este horario de entrada
+                                    // Vamos criar
+                                    List<Empregado> aux = new List<Empregado>();
+                                    aux.add(escolhido);
+                                    evento.horarioFuncionarios[entrada.key] = aux;
                                     evento.empregados.add(escolhido);
                                     _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
                                     evento.totalEmpregados++;
@@ -632,8 +615,32 @@ Atualiza a lista de eventos do dia
                                       // altera o numero total de empregados
                                     });
 
+                                  }else {
+                                    // ja existe pelos menos 1 funcionario neste horario , vamos adicionar outro
+                                    if(!evento.horarioFuncionarios[entrada.key].contains(escolhido)) {
+                                      // se ainda nao tiver posto esse utilizador
+                                      evento.horarioFuncionarios[entrada.key].add(escolhido);
+                                      evento.empregados.add(escolhido);
+                                      _adicionarHorarioFuncionario(escolhido,entrada.value,_selectedDay);
+                                      evento.totalEmpregados++;
+                                      if(update) {
+                                        //eleminar da lista na bd
+                                        _eleminarFuncionarioHorarioBD(escolhido,entradaAntiga,evento);
+                                        // eleminar horario a funcionario
+                                        _eleminarHorarioFuncionario(escolhido, entradaAntiga , evento);
+                                        //eleminar da lista em memoria
+                                        evento.horarioFuncionarios[entradaAntiga].remove(escolhido);
+                                        evento.totalEmpregados--;
+                                      }
+                                      _adicionarFuncionarioHorario(escolhido, evento, entrada.key);
+                                      setState(() {
+                                        // altera o numero total de empregados
+                                      });
+
+                                    }
                                   }
                                 }
+
                               } else {
                                 // nao pode trabaljar nesta data pq esta ocupado
                                 _mostrarAviso("Ocupado", "Este funcionario ja trabalha no horario da ${entrada.value}");
@@ -920,6 +927,7 @@ Atualiza a lista de eventos do dia
     setState(() {
         this.evento.totalEmpregados--;
     });
+    _eleminarHorarioFuncionario(escolhido, entrada, evento);
   }
 
   // adicionar um horario ao funcionario
@@ -935,7 +943,10 @@ Atualiza a lista de eventos do dia
   // elemina horario a um funcionario
   void _eleminarHorarioFuncionario(Empregado escolhido, String tipo , Evento evento) {
     String tipoAux = evento.horarios[tipo];
+    print(escolhido.horariosEmUso[DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day)]);
     escolhido.horariosEmUso[DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day)].remove(tipoAux);
+    print("JA FOI ELEMNIADO");
+    print(escolhido.horariosEmUso[DateTime(_selectedDay.year,_selectedDay.month,_selectedDay.day)]);
   }
 
   /// Mostra a opção de escolher os empregados com determinados horários
